@@ -4,7 +4,10 @@ import type { MatchRecord } from "./model";
 type ResultScreenProps = {
   record: MatchRecord;
   saved: boolean;
+  pending: boolean;
+  syncing: boolean;
   onRetrySave: () => void;
+  onRetrySync: () => void;
   onPlayAgain: () => void;
   onMainMenu: () => void;
 };
@@ -12,7 +15,10 @@ type ResultScreenProps = {
 export function ResultScreen({
   record,
   saved,
+  pending,
+  syncing,
   onRetrySave,
+  onRetrySync,
   onPlayAgain,
   onMainMenu,
 }: ResultScreenProps) {
@@ -42,18 +48,18 @@ export function ResultScreen({
         </div>
         <div>
           <dt>Match record</dt>
-          <dd>{saved ? "Pending" : "Storage error"}</dd>
+          <dd>{!saved ? "Storage error" : pending ? "Pending" : "Recorded"}</dd>
         </div>
       </dl>
-      {saved ? (
+      {saved && pending ? (
         <p className="result-note">
           Your match is saved locally and awaits ranking and history sync.
         </p>
-      ) : (
+      ) : !saved ? (
         <p className="form-message form-message--error" role="alert">
           Your result could not be saved locally. Please try again.
         </p>
-      )}
+      ) : <p className="result-note">Your match is recorded in Ranking and Match History.</p>}
       {!saved ? (
         <button
           className="asset-button asset-button--secondary"
@@ -63,6 +69,7 @@ export function ResultScreen({
           Retry Save
         </button>
       ) : null}
+      {saved && pending ? <button className="asset-button asset-button--secondary" disabled={syncing} onClick={onRetrySync} type="button">{syncing ? "Syncing…" : "Retry Sync"}</button> : null}
       <div className="result-actions">
         <button
           className="asset-button asset-button--primary"

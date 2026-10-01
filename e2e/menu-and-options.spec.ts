@@ -12,10 +12,8 @@ test("shows the accessible menu and available game", async ({ page }) => {
     page.getByRole("heading", { name: "Pirate Battle" }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Play" })).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Ranking" })).toBeDisabled();
-  await expect(
-    page.getByRole("button", { name: "Match History" }),
-  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Ranking" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Match History" })).toBeVisible();
   await expect(page.getByText("W or ↑")).toBeVisible();
   expect(
     await page.evaluate(
@@ -38,7 +36,7 @@ test("navigates preset values, saves them, and restores menu focus", async ({
 
   await expect(page.getByRole("heading", { name: "Options" })).toBeFocused();
   await expect(page.locator('input[type="number"]')).toHaveCount(0);
-  await expect(optionValue(page, "sessionDurationSeconds")).toHaveText("120 s");
+  await expect(optionValue(page, "sessionDurationSeconds")).toHaveText("60 s");
 
   await page
     .getByRole("button", { name: "Increase Game session time" })
@@ -54,7 +52,7 @@ test("navigates preset values, saves them, and restores menu focus", async ({
   );
   await page.getByRole("button", { name: "Save" }).click();
 
-  await expect(page.getByRole("status")).toHaveText("Options saved.");
+  await expect(page.locator(".screen-reader-status")).toHaveText("Options saved.");
   await expect(page.getByRole("button", { name: "Options" })).toBeFocused();
 
   await page.reload();
@@ -108,7 +106,7 @@ test("confirms before discarding unsaved selections", async ({ page }) => {
 
   await expect(page.getByRole("button", { name: "Options" })).toBeFocused();
   await page.getByRole("button", { name: "Options" }).click();
-  await expect(sessionTime).toHaveText("120 s");
+  await expect(sessionTime).toHaveText("60 s");
 
   expect(pageErrors).toEqual([]);
 });
@@ -152,7 +150,7 @@ test("falls back safely for corrupt storage and reports failed saves", async ({
 
   await page.goto("/");
   await page.getByRole("button", { name: "Options" }).click();
-  await expect(optionValue(page, "sessionDurationSeconds")).toHaveText("120 s");
+  await expect(optionValue(page, "sessionDurationSeconds")).toHaveText("60 s");
   await expect(optionValue(page, "enemySpawnIntervalSeconds")).toHaveText(
     "3 s",
   );

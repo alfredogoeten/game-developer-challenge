@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
-import { createGameBalance } from "../src/features/battle/gameBalance";
+import {
+  BATTLE_BALANCE,
+  createGameBalance,
+} from "../src/features/battle/gameBalance";
 import type { BattleTestBridge } from "../src/features/battle/testBridge";
 
 type Snapshot = ReturnType<BattleTestBridge["snapshot"]>;
@@ -37,13 +40,12 @@ async function spawn(
   );
 }
 
-test("loads assets and retries after a failed request", async ({ page }) => {
-  await page.route("**/ship_1.png*", (route) => route.abort());
+test("loads assets and retries after a failed texture", async ({ page }) => {
+  await page.evaluate(() => { window.__pirateBattleFailAssetAttempts = 2; });
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
     "Battle assets could not be loaded",
   );
-  await page.unroute("**/ship_1.png*");
   await page.getByRole("button", { name: "Try Again" }).click();
   await expect(page.locator(".battle-stage canvas")).toBeVisible();
 });
@@ -55,7 +57,7 @@ test("moves, rotates and stops at arena and island boundaries", async ({
   const initial = await snapshot(page);
   await page.keyboard.down("w");
   const islands = createGameBalance({
-    sessionDurationSeconds: 120,
+    sessionDurationSeconds: 60,
     enemySpawnIntervalSeconds: 3,
   }).islands;
   const westernEdge = Math.max(
@@ -316,7 +318,16 @@ test("Shooter fires in range and Chaser impact causes death without points", asy
 }) => {
   await start(page);
   await spawn(page, "shooter", 300, 270);
-  await step(page, 110);
+  await step(page, 91);
+  const enemyProjectile = (await snapshot(page)).projectiles.find(
+    (projectile) => projectile.owner === "enemy",
+  );
+  expect(enemyProjectile).toBeDefined();
+  expect(Math.hypot(enemyProjectile!.vx, enemyProjectile!.vy)).toBeCloseTo(
+    BATTLE_BALANCE.projectile.speed *
+      BATTLE_BALANCE.shooter.projectileSpeedMultiplier,
+  );
+  await step(page, 19);
   expect((await snapshot(page)).player.health).toBe(4);
   for (let remaining = 3; remaining >= 0; remaining -= 1) {
     await spawn(page, "chaser", 210, 270);
@@ -334,7 +345,7 @@ test("Shooter fires in range and Chaser impact causes death without points", asy
   await expect(page.getByText("0 points")).toBeVisible();
 });
 
-test("finishes by time, persists one pending match and starts a clean new game", async ({
+test("finishes by time, records one match and starts a clean new game", async ({
   page,
 }) => {
   await start(page);
@@ -344,11 +355,11 @@ test("finishes by time, persists one pending match and starts a clean new game",
     page.getByRole("heading", { name: "Battle Result" }),
   ).toBeVisible();
   await expect(page.getByText("Time expired")).toBeVisible();
-  await expect(page.getByText("Pending", { exact: true })).toBeVisible();
+  await expect(page.getByText("Recorded", { exact: true })).toBeVisible();
   const first = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("pirate-battle.matches.v1") || "{}"),
   );
-  expect(first.pending).toHaveLength(1);
+  expect(first.pending).toHaveLength(0);
   await page.getByRole("button", { name: "Play Again" }).click();
   await expect(page.locator(".battle-stage canvas")).toBeVisible();
   const restarted = await snapshot(page);
@@ -359,11 +370,11 @@ test("finishes by time, persists one pending match and starts a clean new game",
   await page.getByRole("button", { name: "Leave Game" }).click();
   await page.reload();
   await page.getByRole("button", { name: "Last Result" }).click();
-  await expect(page.getByText("Pending", { exact: true })).toBeVisible();
+  await expect(page.getByText("Recorded", { exact: true })).toBeVisible();
   const after = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("pirate-battle.matches.v1") || "{}"),
   );
-  expect(after.pending).toHaveLength(1);
+  expect(after.pending).toHaveLength(0);
 });
 
 test("abandons without recording and pauses when the tab becomes hidden", async ({
@@ -389,6 +400,10 @@ test("abandons without recording and pauses when the tab becomes hidden", async 
 test("keeps distinct completed matches pending across refresh", async ({
   page,
 }) => {
+  await page.evaluate(() => {
+    localStorage.setItem("pirate-battle.network.v1", "unavailable-on-post");
+  });
+  await page.reload();
   await start(page);
   await page.evaluate(() => window.__pirateBattleTest!.setElapsed(119.99));
   await step(page, 1);
@@ -438,14 +453,14 @@ test("retries a failed local result save without duplicating the match", async (
   await expect(page.getByText("Storage error")).toBeVisible();
   await page.evaluate(() => window.__allowMatchSave!());
   await page.getByRole("button", { name: "Retry Save" }).click();
-  await expect(page.getByText("Pending", { exact: true })).toBeVisible();
+  await expect(page.getByText("Recorded", { exact: true })).toBeVisible();
   expect(
     await page.evaluate(
       () =>
         JSON.parse(localStorage.getItem("pirate-battle.matches.v1") || "{}")
           .pending.length,
     ),
-  ).toBe(1);
+  ).toBe(0);
 });
 
 test("reloading an active match discards it without a pending record", async ({

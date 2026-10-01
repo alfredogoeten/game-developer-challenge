@@ -1,6 +1,6 @@
 # Pirate Battle
 
-A browser-based, single-player naval shooter built with React, TypeScript, and PixiJS. The current milestone includes a complete local match from **Play** through the result screen. Ranking, match history, HTTP mocks, profiling, and deployment remain future milestones.
+A browser-based, single-player naval shooter built with React, TypeScript, and PixiJS. Ranking and Match History use a browser-hosted MSW API, Axios, and TanStack Query. Profiling and deployment remain future milestones.
 
 ## Requirements and setup
 
@@ -24,7 +24,7 @@ On PowerShell installations that block `npm.ps1`, use `npm.cmd` instead of `npm`
 | `npm run test:e2e` | Run desktop and mobile Chromium Playwright tests. |
 | `npm run test:e2e:ui` | Open the interactive Playwright runner. |
 
-The E2E suite writes an HTML report to `playwright-report/` and captures traces on the first retry. Screenshot baselines for Windows Chromium are versioned under `e2e/visual.spec.ts-snapshots/`.
+The E2E suite writes an HTML report to `reports/playwright/` and retains traces for failed tests. Screenshot baselines for Windows Chromium are stored under `e2e/visual.spec.ts-snapshots/`. The MSW worker is stored in `public/mockServiceWorker.js` and is included in production builds. No environment variables or private services are required.
 
 ## Play
 
@@ -46,12 +46,22 @@ Options are stored under `pirate-battle.options.v1`. Invalid or unreadable data 
 
 | Option | Default | Allowed values |
 | --- | ---: | --- |
-| Game session time | 120 seconds | 60 or 180 seconds |
+| Game session time | 60 or 180 seconds |
 | Enemy spawn time | 3 seconds | Whole seconds from 2 through 10 |
 
 **Save** validates and persists Options. Leaving with unsaved changes requires confirmation. If local storage rejects a save, the screen reports the error and allows retry.
 
-Completed matches are stored under `pirate-battle.matches.v1` with a stable player ID, a unique match ID, date, score, active duration, end reason, and the configuration snapshot. The last result is available from **Last Result** after a refresh. Completed records remain in a local **Pending** queue for the later ranking and history integration. A failed local result save can be retried on the result screen. Starting another match does not clear pending records.
+Completed matches are stored under `pirate-battle.matches.v1` with a stable player ID, a unique match ID, date, score, active duration, end reason, and the configuration snapshot. The last result is available from **Last Result** after a refresh. A completed match enters a local **Pending** queue before an HTTP registration attempt. Confirmed records are stored separately under `pirate-battle.confirmed.v1` and then removed from the pending queue. An unsuccessful or timed-out send remains pending and can be retried after refresh. Starting another match does not clear pending records. A failed local result save can be retried on the result screen.
+
+## Ranking, Match History, and network scenarios
+
+The main menu opens **Ranking** and **Match History** as separate screens, each with a back button and Escape shortcut. Ranking shows matches made with the currently saved Options and the current balance snapshot. It displays five matches per page, ordered by score descending, then completion date and match ID ascending. Every completed match has one ranking entry. Match History shows the current player's completed matches across all configurations, newest first, also five per page. Other players come from deterministic fixtures. Reopening either screen refreshes it; a successful registration invalidates both queries.
+
+The browser API has three routes: `GET /api/ranking?config=<encoded configuration>&page=<n>`, `GET /api/matches?playerId=<id>&page=<n>`, and `POST /api/matches` with a `MatchRecord` JSON body. `matchId` is the idempotency key. A repeated POST returns the existing record and cannot create a second ranking or history entry. Axios sends the requests; TanStack Query handles consultation, registration, retries for transient query failures, cache, and invalidation. The MSW worker starts before the app renders in development and preview/production builds. If it cannot start, the local game still works and the remote screens show an error.
+
+The reproducible MSW scenarios are configured by the test suite through `pirate-battle.network.v1`; they cover empty results, multiple pages, slow or variable latency, out-of-order responses, timeout, connection failure, HTTP 400/500, isolated ranking or history failures, a timeout after a POST was committed, and unavailable registration.
+
+For reproducible latency tests, URL parameters `networkSeed=<0..5000>` and `networkDelayMs=<0..5000>` control the deterministic variation and delay in milliseconds. The defaults are seed 41, slow delay 700 ms, out-of-order delay 850 ms, and timeout delay 1800 ms. Timeout delays have a 1300 ms minimum so they exceed the Axios 1200 ms timeout. The test clock remains controlled separately by `?e2e=1` in development.
 
 The gameplay balance lives in `src/features/battle/gameBalance.ts`; movement, health, weapon, projectile, enemy, spawn, and arena values are centralized there. Only session duration and spawn interval appear in Options. Options, battle, matches, and menu each own their code under `src/features/`; `App.tsx` coordinates navigation between them.
 

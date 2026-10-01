@@ -3,13 +3,18 @@ import {
   Container,
   Graphics,
   Sprite,
+  TilingSprite,
   type Texture,
 } from "pixi.js";
-import type { GameBalance } from "./gameBalance";
+import { COMBAT_FEEDBACK, type GameBalance } from "./gameBalance";
 import type { Effect, Enemy, GameSnapshot, Ship } from "./model";
 import type { BattleTextures } from "./assets";
 
-type ShipView = { root: Container; sprite: Sprite; health: Graphics };
+type ShipView = {
+  root: Container;
+  sprite: Sprite;
+  healthFill: Sprite;
+};
 
 export class BattleRenderer {
   private readonly app: Application;
@@ -28,17 +33,11 @@ export class BattleRenderer {
   ) {
     this.app = app;
     this.textures = textures;
-    const ocean = new Graphics()
-      .rect(0, 0, balance.arena.width, balance.arena.height)
-      .fill(0x146687);
-    for (let y = 24; y < balance.arena.height; y += 48) {
-      for (let x = (y % 96) * 3; x < balance.arena.width; x += 145) {
-        ocean
-          .moveTo(x, y)
-          .quadraticCurveTo(x + 16, y - 6, x + 32, y)
-          .stroke({ color: 0x6cbed0, alpha: 0.24, width: 2 });
-      }
-    }
+    const ocean = new TilingSprite({
+      texture: textures.ocean,
+      width: balance.arena.width,
+      height: balance.arena.height,
+    });
     const islands = new Container();
     for (const [index, shape] of balance.islands.entries()) {
       const island = new Container();
@@ -124,16 +123,24 @@ export class BattleRenderer {
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5);
       sprite.scale.set(ship.id === 0 ? 0.56 : 0.48);
-      const health = new Graphics();
-      root.addChild(sprite, health);
+      const healthFill = new Sprite(this.textures.shipHealthGreen);
+      healthFill.anchor.set(0, 0.5);
+      healthFill.position.set(-22, -36);
+      healthFill.height = 9;
+      const healthFrame = new Sprite(this.textures.shipHealthFrame);
+      healthFrame.anchor.set(0.5);
+      healthFrame.position.set(0, -36);
+      healthFrame.width = 52;
+      healthFrame.height = 15;
+      root.addChild(sprite, healthFill, healthFrame);
       this.shipLayer.addChild(root);
-      view = { root, sprite, health };
+      view = { root, sprite, healthFill };
       this.ships.set(ship.id, view);
     }
     view.root.position.set(ship.x, ship.y);
     view.sprite.rotation = ship.angle - Math.PI / 2;
     const ratio = ship.health / ship.maxHealth;
-    const shake = ship.hitFeedback / 0.24;
+    const shake = ship.hitFeedback / COMBAT_FEEDBACK.hitDuration;
     view.sprite.position.set(
       Math.sin(snapshotTime(ship.hitFeedback, ship.id)) * 3.5 * shake,
       Math.cos(snapshotTime(ship.hitFeedback, ship.id)) * 2 * shake,
@@ -146,12 +153,11 @@ export class BattleRenderer {
           : ratio > 0.25
             ? 0xffd49a
             : 0xff9292;
-    view.health
-      .clear()
-      .roundRect(-25, -44, 50, 7, 2)
-      .fill(0x102c3d)
-      .roundRect(-23, -42, 46 * ratio, 3, 1)
-      .fill(ratio > 0.5 ? 0x69d586 : ratio > 0.25 ? 0xf5bc57 : 0xf47773);
+    view.healthFill.texture =
+      ship.id === 0 && ratio > 0.25
+        ? this.textures.shipHealthGreen
+        : this.textures.shipHealthRed;
+    view.healthFill.width = 44 * ratio;
   }
 
   private syncEffect(effect: Effect) {
@@ -194,5 +200,5 @@ export class BattleRenderer {
 }
 
 function snapshotTime(remaining: number, id: number) {
-  return (0.24 - remaining) * 105 + id * 1.7;
+  return (COMBAT_FEEDBACK.hitDuration - remaining) * 105 + id * 1.7;
 }

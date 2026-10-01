@@ -16,12 +16,12 @@ type BattleScreenProps = {
 };
 
 const TOUCH_CONTROLS: { action: Action; label: string; icon: string }[] = [
-  { action: "turnLeft", label: "Turn left", icon: "↶" },
-  { action: "forward", label: "Move forward", icon: "↑" },
-  { action: "turnRight", label: "Turn right", icon: "↷" },
-  { action: "port", label: "Fire left broadside", icon: "◀" },
-  { action: "front", label: "Fire front cannon", icon: "●" },
-  { action: "starboard", label: "Fire right broadside", icon: "▶" },
+  { action: "turnLeft", label: "Turn left", icon: "turn-left" },
+  { action: "forward", label: "Move forward", icon: "forward" },
+  { action: "turnRight", label: "Turn right", icon: "turn-right" },
+  { action: "port", label: "Fire left broadside", icon: "fire-left" },
+  { action: "front", label: "Fire front cannon", icon: "fire-front" },
+  { action: "starboard", label: "Fire right broadside", icon: "fire-right" },
 ];
 
 function isPortraitMobile() {
@@ -277,43 +277,45 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
   }
 
   const remaining = Math.ceil(hud?.remaining ?? balance.duration);
+  const health = hud?.player.health ?? balance.player.health;
+  const healthRatio = Math.max(0, Math.min(1, health / balance.player.health));
+  const healthState = healthRatio > 0.5 ? "green" : healthRatio > 0.25 ? "amber" : "red";
   return (
     <section className="battle-screen" aria-label="Pirate Battle game">
       <header
         className="battle-hud"
         inert={Boolean(hud?.paused || exitDialog || portrait || !ready)}
       >
-        <strong>
-          Health:{" "}
-          <span data-testid="health">
-            {hud?.player.health ?? balance.player.health}
-          </span>{" "}
-          / {balance.player.health}
-        </strong>
-        <strong>
-          Score: <span data-testid="score">{hud?.score ?? 0}</span>
-        </strong>
-        <strong>
-          Time: <span data-testid="time">{remaining}</span>s
-        </strong>
+        <div className="hud-health" aria-label={`Health: ${health} of ${balance.player.health}`}>
+          <span aria-hidden="true" className="hud-health__heart" />
+          <span className={`hud-health__bar hud-health__bar--${healthState}`}>
+            <span className="hud-health__fill" style={{ "--health-ratio": healthRatio } as React.CSSProperties} />
+          </span>
+          <span className="hud-health__value"><span data-testid="health">{health}</span> / {balance.player.health}</span>
+        </div>
+        <div className="hud-counters">
+          <strong className="hud-counter hud-counter--score" aria-label={`Score: ${hud?.score ?? 0}`}><span data-testid="score">{hud?.score ?? 0}</span></strong>
+          <strong className="hud-counter hud-counter--time" aria-label={`Time: ${remaining} seconds`}><span data-testid="time">{remaining}</span></strong>
+        </div>
         <button
           aria-label={hud?.paused ? "Resume game" : "Pause game"}
-          className="hud-button"
+          className="hud-round-button hud-round-button--pause"
           disabled={!ready || portrait}
           onClick={togglePause}
           type="button"
         >
-          {hud?.paused ? "Resume" : "Pause"}
+          <span aria-hidden="true" className="hud-round-button__icon hud-round-button__icon--pause" />
         </button>
         <button
-          className="hud-button"
+          aria-label="Main Menu"
+          className="hud-round-button hud-round-button--home"
           onClick={() => {
             togglePauseIfRunning();
             setExitDialog(true);
           }}
           type="button"
         >
-          Main Menu
+          <span aria-hidden="true" className="hud-round-button__icon hud-round-button__icon--home" />
         </button>
       </header>
       <div
@@ -353,9 +355,10 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           aria-label="Game paused"
           onKeyDown={handleDialogKeyDown}
         >
-          <h2>Paused</h2>
-          <p>Time and combat are stopped.</p>
-          <button
+          <div className="game-modal-panel">
+            <h2>Paused</h2>
+            <p>Ready when you are.</p>
+            <button
             className="asset-button asset-button--primary"
             onClick={togglePause}
             ref={resumeButtonRef}
@@ -363,13 +366,14 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           >
             Resume
           </button>
-          <button
+            <button
             className="asset-button asset-button--secondary"
             onClick={() => setExitDialog(true)}
             type="button"
           >
             Main Menu
-          </button>
+            </button>
+          </div>
         </div>
       ) : null}
       {exitDialog ? (
@@ -380,9 +384,10 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           aria-label="Leave game"
           onKeyDown={handleDialogKeyDown}
         >
-          <h2>Leave this game?</h2>
-          <p>This match will be abandoned and will not be recorded.</p>
-          <div className="dialog-actions">
+          <div className="game-modal-panel">
+            <h2>Leave this game?</h2>
+            <p>This match will be abandoned and will not be recorded.</p>
+            <div className="dialog-actions">
             <button
               className="asset-button asset-button--secondary"
               onClick={() => setExitDialog(false)}
@@ -398,6 +403,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
             >
               Leave Game
             </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -417,7 +423,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
             onPointerUp={handleTouchUp}
             type="button"
           >
-            <span aria-hidden="true">{icon}</span>
+            <span aria-hidden="true" className={`touch-control__icon touch-control__icon--${icon}`} />
           </button>
         ))}
       </div>

@@ -11,5 +11,6 @@ declare global {
   interface Window {
     __pirateBattleTest?: BattleTestBridge;
     __allowMatchSave?: () => void;
+    __pirateBattleFailAssetAttempts?: number;
   }
 }

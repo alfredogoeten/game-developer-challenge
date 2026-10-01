@@ -12,8 +12,8 @@ type PresetOptionRule = {
 
 export const GAME_OPTION_RULES: Record<GameOptionField, PresetOptionRule> = {
   sessionDurationSeconds: {
-    defaultValue: 120,
-    values: [60, 120, 180],
+    defaultValue: 60,
+    values: [60, 180],
   },
   enemySpawnIntervalSeconds: {
     defaultValue: 3,

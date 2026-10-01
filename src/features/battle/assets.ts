@@ -29,8 +29,24 @@ const assetUrls = {
     "../../../assets/png/default/effects/fire_1.png",
     import.meta.url,
   ).href,
+  shipHealthFrame: new URL(
+    "../../../assets/png/default/ui/hud/enemy_health_frame.png",
+    import.meta.url,
+  ).href,
+  shipHealthGreen: new URL(
+    "../../../assets/png/default/ui/hud/enemy_health_fill_green.png",
+    import.meta.url,
+  ).href,
+  shipHealthRed: new URL(
+    "../../../assets/png/default/ui/hud/enemy_health_fill_red.png",
+    import.meta.url,
+  ).href,
   island: new URL(
     "../../../assets/png/default/tiles/tile_25.png",
+    import.meta.url,
+  ).href,
+  ocean: new URL(
+    "../../../assets/png/default/tiles/tile_73.png",
     import.meta.url,
   ).href,
 } as const;
@@ -44,6 +60,10 @@ export async function loadBattleTextures(
   const textures = {} as BattleTextures;
   let completed = 0;
   for (const [name, url] of entries) {
+    if (import.meta.env.DEV && name === "player" && (window.__pirateBattleFailAssetAttempts ?? 0) > 0) {
+      window.__pirateBattleFailAssetAttempts = (window.__pirateBattleFailAssetAttempts ?? 0) - 1;
+      throw new Error("Simulated player texture failure.");
+    }
     const texture = await Assets.load<Texture>(url);
     if (!texture || texture === Texture.EMPTY || !texture.source?.width)
       throw new Error(`Could not load ${name}.`);

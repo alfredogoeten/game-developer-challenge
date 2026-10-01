@@ -34,6 +34,27 @@ export function storeCompletedMatch(
   }
 }
 
+export function confirmMatch(
+  current: LocalMatches,
+  matchId: string,
+): { state: LocalMatches; saved: boolean } {
+  const state = {
+    ...current,
+    pending: current.pending.filter((item) => item.matchId !== matchId),
+  };
+  try {
+    window.localStorage.setItem(MATCH_STORAGE_KEY, JSON.stringify(state));
+    return { state, saved: true };
+  } catch {
+    return { state: current, saved: false };
+  }
+}
+
+export function resetLocalMatches(): LocalMatches {
+  try { window.localStorage.removeItem(MATCH_STORAGE_KEY); } catch { /* Keep the game usable. */ }
+  return { playerId: crypto.randomUUID(), lastCompleted: null, pending: [] };
+}
+
 function isLocalMatches(value: unknown): value is LocalMatches {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<LocalMatches>;
@@ -45,7 +66,7 @@ function isLocalMatches(value: unknown): value is LocalMatches {
   );
 }
 
-function isMatchRecord(value: unknown): value is MatchRecord {
+export function isMatchRecord(value: unknown): value is MatchRecord {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<MatchRecord>;
   return (

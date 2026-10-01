@@ -63,6 +63,25 @@
   --asset-icon-plus: url("../../assets/png/default/ui/controls/icon_plus.png");
   --asset-icon-minus: url("../../assets/png/default/ui/controls/icon_minus.png");
   --asset-icon-back: url("../../assets/png/default/ui/controls/icon_turn_left.png");
+  --asset-icon-home: url("../../assets/png/default/ui/controls/icon_home.png");
+  --asset-icon-pause: url("../../assets/png/default/ui/controls/icon_pause.png");
+  --asset-icon-forward: url("../../assets/png/default/ui/controls/icon_forward.png");
+  --asset-icon-turn-right: url("../../assets/png/default/ui/controls/icon_turn_right.png");
+  --asset-icon-fire-left: url("../../assets/png/default/ui/controls/icon_fire_left.png");
+  --asset-icon-fire-front: url("../../assets/png/default/ui/controls/icon_fire_front.png");
+  --asset-icon-fire-right: url("../../assets/png/default/ui/controls/icon_fire_right.png");
+  --asset-round-button: url("../../assets/png/default/ui/controls/button_round_normal.png");
+  --asset-round-button-hover: url("../../assets/png/default/ui/controls/button_round_hover.png");
+  --asset-round-button-pressed: url("../../assets/png/default/ui/controls/button_round_pressed.png");
+  --asset-health-frame: url("../../assets/png/default/ui/hud/health_frame.png");
+  --asset-health-green: url("../../assets/png/default/ui/hud/health_fill_green.png");
+  --asset-health-amber: url("../../assets/png/default/ui/hud/health_fill_amber.png");
+  --asset-health-red: url("../../assets/png/default/ui/hud/health_fill_red.png");
+  --asset-counter-panel: url("../../assets/png/default/ui/hud/counter_panel.png");
+  --asset-icon-heart: url("../../assets/png/default/ui/hud/icon_heart.png");
+  --asset-icon-score: url("../../assets/png/default/ui/hud/icon_score.png");
+  --asset-icon-time: url("../../assets/png/default/ui/hud/icon_time.png");
+  --asset-menu-ship: url("../../assets/png/default/ships/ship_1.png");
   --menu-panel-slice: 32 40 fill;
   --modal-layer: 10;
 }

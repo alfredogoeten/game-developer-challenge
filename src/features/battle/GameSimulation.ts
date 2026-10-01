@@ -1,4 +1,4 @@
-import type { GameBalance } from "./gameBalance";
+import { COMBAT_FEEDBACK, type GameBalance } from "./gameBalance";
 
 import type {
   Action,
@@ -12,6 +12,27 @@ import type {
 } from "./model";
 
 const TAU = Math.PI * 2;
+const SIMULATION_TUNING = {
+  maximumStepDuration: 1 / 30,
+  spawnTimeEpsilon: 1e-9,
+  cannonMuzzleOffset: 7,
+  broadsideOffsets: [-17, 0, 17],
+  minimumMovementRatio: 0.15,
+  stuckRecoveryRate: 2,
+  stuckThreshold: 0.45,
+  boundaryEscapeDuration: 0.9,
+  spawnIslandClearance: 10,
+  collisionCorrectionPasses: 3,
+  islandRoutePadding: 18,
+  islandAvoidancePadding: 28,
+  islandAvoidanceRamp: 35,
+  routeSideChangeTolerance: 8,
+  routeLookaheadDistance: 90,
+  boundarySteeringMargin: 70,
+  boundarySteeringWeight: 2.4,
+  boundaryContactPadding: 3,
+  boundaryEscapeInset: 105,
+} as const;
 
 export class GameSimulation {
   readonly balance: GameBalance;
@@ -84,7 +105,7 @@ export class GameSimulation {
 
   step(dt: number, actions: ReadonlySet<Action>) {
     if (this.paused || this.ended || dt <= 0) return;
-    const delta = Math.min(dt, 1 / 30);
+    const delta = Math.min(dt, SIMULATION_TUNING.maximumStepDuration);
     this.elapsed = Math.min(this.balance.duration, this.elapsed + delta);
     if (this.elapsed >= this.balance.duration) {
       this.ended = "time";
@@ -101,7 +122,10 @@ export class GameSimulation {
     if (this.ended) return;
 
     this.spawnCooldown -= delta;
-    while (this.spawnCooldown <= 1e-9 && !this.ended) {
+    while (
+      this.spawnCooldown <= SIMULATION_TUNING.spawnTimeEpsilon &&
+      !this.ended
+    ) {
       this.spawnEnemy();
       this.spawnCooldown += this.balance.spawn.interval;
     }
@@ -126,7 +150,7 @@ export class GameSimulation {
         this.player.angle,
         "player",
         [0],
-        this.player.radius + 7,
+        this.player.radius + SIMULATION_TUNING.cannonMuzzleOffset,
       );
       this.frontCooldown = this.balance.weapons.frontCooldown;
     }
@@ -135,8 +159,8 @@ export class GameSimulation {
         this.player,
         this.player.angle - Math.PI / 2,
         "player",
-        [-17, 0, 17],
-        this.player.radius + 7,
+        SIMULATION_TUNING.broadsideOffsets,
+        this.player.radius + SIMULATION_TUNING.cannonMuzzleOffset,
       );
       this.portCooldown = this.balance.weapons.broadsideCooldown;
     }
@@ -145,8 +169,8 @@ export class GameSimulation {
         this.player,
         this.player.angle + Math.PI / 2,
         "player",
-        [-17, 0, 17],
-        this.player.radius + 7,
+        SIMULATION_TUNING.broadsideOffsets,
+        this.player.radius + SIMULATION_TUNING.cannonMuzzleOffset,
       );
       this.starboardCooldown = this.balance.weapons.broadsideCooldown;
     }
@@ -187,12 +211,17 @@ export class GameSimulation {
         );
         const moved = Math.hypot(enemy.x - previousX, enemy.y - previousY);
         enemy.stuckTime =
-          moved < spec.speed * dt * 0.15
+          moved < spec.speed * dt * SIMULATION_TUNING.minimumMovementRatio
             ? enemy.stuckTime + dt
-            : Math.max(0, enemy.stuckTime - dt * 2);
-        if (enemy.stuckTime >= 0.45) {
+            : Math.max(
+                0,
+                enemy.stuckTime -
+                  dt * SIMULATION_TUNING.stuckRecoveryRate,
+              );
+        if (enemy.stuckTime >= SIMULATION_TUNING.stuckThreshold) {
           enemy.stuckTime = 0;
-          if (this.nearBoundary(enemy)) enemy.escapeTime = 0.9;
+          if (this.nearBoundary(enemy))
+            enemy.escapeTime = SIMULATION_TUNING.boundaryEscapeDuration;
           else enemy.avoidanceSide = enemy.avoidanceSide === 1 ? -1 : 1;
         }
       } else {
@@ -212,7 +241,13 @@ export class GameSimulation {
           ) &&
           enemy.fireCooldown <= 0
         ) {
-          this.fire(enemy, aim, "enemy", [0], enemy.radius + 7);
+          this.fire(
+            enemy,
+            aim,
+            "enemy",
+            [0],
+            enemy.radius + SIMULATION_TUNING.cannonMuzzleOffset,
+          );
           enemy.fireCooldown = this.balance.shooter.fireCooldown;
         }
       } else if (
@@ -220,7 +255,12 @@ export class GameSimulation {
         this.player.radius + enemy.radius
       ) {
         this.damagePlayer(this.balance.chaser.impactDamage);
-        this.addEffect(enemy.x, enemy.y, "explosion", 0.48);
+        this.addEffect(
+          enemy.x,
+          enemy.y,
+          "explosion",
+          COMBAT_FEEDBACK.explosionDuration,
+        );
         this.enemies.splice(this.enemies.indexOf(enemy), 1);
       }
       if (this.ended) return;
@@ -249,7 +289,7 @@ export class GameSimulation {
         )
       ) {
         hit = true;
-        this.addEffect(x, y, "impact", 0.24);
+        this.addEffect(x, y, "impact", COMBAT_FEEDBACK.impactDuration);
       }
       if (!hit && projectile.owner === "player") {
         for (const enemy of this.enemies) {
@@ -266,13 +306,25 @@ export class GameSimulation {
           )
             continue;
           enemy.health -= this.balance.projectile.damage;
-          enemy.hitFeedback = 0.24;
+          enemy.hitFeedback = COMBAT_FEEDBACK.hitDuration;
           hit = true;
           if (enemy.health <= 0) {
             this.enemies.splice(this.enemies.indexOf(enemy), 1);
             this.score += 1;
-            this.addEffect(enemy.x, enemy.y, "explosion", 0.48);
-          } else this.addEffect(x, y, "impact", 0.24);
+            this.addEffect(
+              enemy.x,
+              enemy.y,
+              "explosion",
+              COMBAT_FEEDBACK.explosionDuration,
+            );
+          } else {
+            this.addEffect(
+              x,
+              y,
+              "impact",
+              COMBAT_FEEDBACK.impactDuration,
+            );
+          }
           break;
         }
       } else if (
@@ -289,7 +341,7 @@ export class GameSimulation {
         )
       ) {
         this.damagePlayer(this.balance.projectile.damage);
-        this.addEffect(x, y, "impact", 0.24);
+        this.addEffect(x, y, "impact", COMBAT_FEEDBACK.impactDuration);
         hit = true;
       }
       if (hit) this.projectiles.splice(this.projectiles.indexOf(projectile), 1);
@@ -314,7 +366,7 @@ export class GameSimulation {
 
   private damagePlayer(amount: number) {
     this.player.health = Math.max(0, this.player.health - amount);
-    this.player.hitFeedback = 0.24;
+    this.player.hitFeedback = COMBAT_FEEDBACK.hitDuration;
     if (this.player.health <= 0) this.ended = "death";
   }
 
@@ -322,9 +374,13 @@ export class GameSimulation {
     ship: Ship,
     angle: number,
     owner: "player" | "enemy",
-    offsets: number[],
+    offsets: readonly number[],
     distance: number,
   ) {
+    const speed =
+      owner === "enemy"
+        ? this.balance.shooter.projectileSpeed
+        : this.balance.projectile.speed;
     for (const offset of offsets) {
       const x = ship.x + Math.cos(angle) * distance - Math.sin(angle) * offset;
       const y = ship.y + Math.sin(angle) * distance + Math.cos(angle) * offset;
@@ -332,12 +388,12 @@ export class GameSimulation {
         id: this.nextId++,
         x,
         y,
-        vx: Math.cos(angle) * this.balance.projectile.speed,
-        vy: Math.sin(angle) * this.balance.projectile.speed,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
         lifetime: this.balance.projectile.lifetime,
         owner,
       });
-      this.addEffect(x, y, "muzzle", 0.13);
+      this.addEffect(x, y, "muzzle", COMBAT_FEEDBACK.muzzleDuration);
     }
   }
 
@@ -358,7 +414,9 @@ export class GameSimulation {
         this.islandLobes.every(
           (lobe) =>
             Math.hypot(point.x - lobe.x, point.y - lobe.y) >=
-            lobe.radius + this.balance.chaser.radius + 10,
+            lobe.radius +
+              this.balance.chaser.radius +
+              SIMULATION_TUNING.spawnIslandClearance,
         ),
     );
     if (candidates.length === 0) return;
@@ -388,7 +446,11 @@ export class GameSimulation {
     const { width, height } = this.balance.arena;
     ship.x = Math.max(ship.radius, Math.min(width - ship.radius, ship.x + dx));
     ship.y = Math.max(ship.radius, Math.min(height - ship.radius, ship.y + dy));
-    for (let pass = 0; pass < 3; pass += 1) {
+    for (
+      let pass = 0;
+      pass < SIMULATION_TUNING.collisionCorrectionPasses;
+      pass += 1
+    ) {
       let corrected = false;
       for (const lobe of this.islandLobes) {
         const vx = ship.x - lobe.x;
@@ -421,7 +483,7 @@ export class GameSimulation {
           this.player.y,
           island.x,
           island.y,
-          island.radius + ship.radius + 18,
+          island.radius + ship.radius + SIMULATION_TUNING.islandRoutePadding,
         )
       ) {
         blockerIndex = index;
@@ -447,7 +509,9 @@ export class GameSimulation {
     }
     const outside = Math.max(
       0,
-      (blocker.radius + ship.radius + 28 - distance) / 35,
+      (blocker.radius + ship.radius + SIMULATION_TUNING.islandAvoidancePadding -
+        distance) /
+        SIMULATION_TUNING.islandAvoidanceRamp,
     );
     const routeAngle = (side: number) =>
       Math.atan2(
@@ -458,17 +522,20 @@ export class GameSimulation {
     const opposite = routeAngle(-ship.avoidanceSide);
     if (
       this.boundaryOverflow(ship, chosen) >
-      this.boundaryOverflow(ship, opposite) + 8
+      this.boundaryOverflow(ship, opposite) +
+        SIMULATION_TUNING.routeSideChangeTolerance
     )
       ship.avoidanceSide = ship.avoidanceSide === 1 ? -1 : 1;
     return this.steerFromBoundary(ship, routeAngle(ship.avoidanceSide));
   }
 
   private boundaryOverflow(ship: Ship, angle: number) {
-    const x = ship.x + Math.cos(angle) * 90;
-    const y = ship.y + Math.sin(angle) * 90;
+    const x =
+      ship.x + Math.cos(angle) * SIMULATION_TUNING.routeLookaheadDistance;
+    const y =
+      ship.y + Math.sin(angle) * SIMULATION_TUNING.routeLookaheadDistance;
     const { width, height } = this.balance.arena;
-    const inset = ship.radius + 8;
+    const inset = ship.radius + SIMULATION_TUNING.routeSideChangeTolerance;
     return (
       Math.max(0, inset - x) +
       Math.max(0, x - width + inset) +
@@ -479,29 +546,43 @@ export class GameSimulation {
 
   private steerFromBoundary(ship: Ship, angle: number) {
     const { width, height } = this.balance.arena;
-    const margin = ship.radius + 70;
+    const margin = ship.radius + SIMULATION_TUNING.boundarySteeringMargin;
     let x = Math.cos(angle);
     let y = Math.sin(angle);
-    if (x < 0) x += 2.4 * Math.max(0, (margin - ship.x) / margin);
-    if (x > 0) x -= 2.4 * Math.max(0, (ship.x - width + margin) / margin);
-    if (y < 0) y += 2.4 * Math.max(0, (margin - ship.y) / margin);
-    if (y > 0) y -= 2.4 * Math.max(0, (ship.y - height + margin) / margin);
+    if (x < 0)
+      x +=
+        SIMULATION_TUNING.boundarySteeringWeight *
+        Math.max(0, (margin - ship.x) / margin);
+    if (x > 0)
+      x -=
+        SIMULATION_TUNING.boundarySteeringWeight *
+        Math.max(0, (ship.x - width + margin) / margin);
+    if (y < 0)
+      y +=
+        SIMULATION_TUNING.boundarySteeringWeight *
+        Math.max(0, (margin - ship.y) / margin);
+    if (y > 0)
+      y -=
+        SIMULATION_TUNING.boundarySteeringWeight *
+        Math.max(0, (ship.y - height + margin) / margin);
     return Math.atan2(y, x);
   }
 
   private nearBoundary(ship: Ship) {
     const { width, height } = this.balance.arena;
     return (
-      ship.x <= ship.radius + 3 ||
-      ship.x >= width - ship.radius - 3 ||
-      ship.y <= ship.radius + 3 ||
-      ship.y >= height - ship.radius - 3
+      ship.x <= ship.radius + SIMULATION_TUNING.boundaryContactPadding ||
+      ship.x >=
+        width - ship.radius - SIMULATION_TUNING.boundaryContactPadding ||
+      ship.y <= ship.radius + SIMULATION_TUNING.boundaryContactPadding ||
+      ship.y >=
+        height - ship.radius - SIMULATION_TUNING.boundaryContactPadding
     );
   }
 
   private escapeBoundary(ship: Ship) {
     const { width, height } = this.balance.arena;
-    const inset = ship.radius + 105;
+    const inset = ship.radius + SIMULATION_TUNING.boundaryEscapeInset;
     const x = Math.max(inset, Math.min(width - inset, ship.x));
     const y = Math.max(inset, Math.min(height - inset, ship.y));
     return Math.atan2(y - ship.y, x - ship.x);

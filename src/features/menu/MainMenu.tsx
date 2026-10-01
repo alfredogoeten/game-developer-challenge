@@ -9,20 +9,34 @@ const CONTROL_HINTS = [
 ];
 
 type MainMenuProps = {
+  pendingCount: number;
+  onRetryPending: () => void;
+  syncing: boolean;
   hasLastResult: boolean;
   onOpenLastResult: () => void;
   onOpenOptions: () => void;
+  onOpenRanking: () => void;
+  onOpenHistory: () => void;
   onPlay: () => void;
   optionsButtonRef: RefObject<HTMLButtonElement | null>;
+  rankingButtonRef: RefObject<HTMLButtonElement | null>;
+  historyButtonRef: RefObject<HTMLButtonElement | null>;
   statusMessage: string;
 };
 
 export function MainMenu({
+  pendingCount,
+  onRetryPending,
+  syncing,
   hasLastResult,
   onOpenLastResult,
   onOpenOptions,
+  onOpenRanking,
+  onOpenHistory,
   onPlay,
   optionsButtonRef,
+  rankingButtonRef,
+  historyButtonRef,
   statusMessage,
 }: MainMenuProps) {
   return (
@@ -71,26 +85,31 @@ export function MainMenu({
         </dl>
       </section>
 
-      <div
-        className="menu-footer-actions"
-        aria-label="Unavailable menu sections"
-      >
+      <div className="menu-footer-actions" aria-label="Match records">
         <button
           className="asset-button asset-button--secondary"
-          disabled
+          onClick={onOpenRanking}
+          ref={rankingButtonRef}
           type="button"
         >
           Ranking
         </button>
         <button
           className="asset-button asset-button--secondary"
-          disabled
+          onClick={onOpenHistory}
+          ref={historyButtonRef}
           type="button"
         >
           Match History
         </button>
       </div>
 
+      {pendingCount > 0 ? (
+        <div className="pending-notice" role="status">
+          <span>{pendingCount} match{pendingCount === 1 ? "" : "es"} pending registration.</span>
+          <button className="hud-button" disabled={syncing} onClick={onRetryPending} type="button">{syncing ? "Syncing…" : "Retry Sync"}</button>
+        </div>
+      ) : null}
       <p aria-live="polite" className="screen-reader-status" role="status">
         {statusMessage}
       </p>
