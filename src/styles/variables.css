@@ -51,18 +51,18 @@
   --button-disabled-opacity: 0.8;
   --round-button-disabled-opacity: 0.45;
 
-  --asset-scene-background: url('../../assets/ui_scene_background.png');
-  --asset-panel: url('../../assets/png/default/ui/menu/panel_menu.png');
-  --asset-title: url('../../assets/png/default/ui/menu/title_pirate_battle.png');
-  --asset-button-primary: url('../../assets/png/default/ui/menu/button_primary_normal.png');
-  --asset-button-primary-hover: url('../../assets/png/default/ui/menu/button_primary_hover.png');
-  --asset-button-primary-pressed: url('../../assets/png/default/ui/menu/button_primary_pressed.png');
-  --asset-button-primary-disabled: url('../../assets/png/default/ui/menu/button_primary_disabled.png');
-  --asset-button-secondary: url('../../assets/png/default/ui/menu/button_secondary_normal.png');
-  --asset-button-secondary-pressed: url('../../assets/png/default/ui/menu/button_secondary_pressed.png');
-  --asset-icon-plus: url('../../assets/png/default/ui/controls/icon_plus.png');
-  --asset-icon-minus: url('../../assets/png/default/ui/controls/icon_minus.png');
-  --asset-icon-back: url('../../assets/png/default/ui/controls/icon_turn_left.png');
+  --asset-scene-background: url("../../assets/ui_scene_background.png");
+  --asset-panel: url("../../assets/png/default/ui/menu/panel_menu.png");
+  --asset-title: url("../../assets/png/default/ui/menu/title_pirate_battle.png");
+  --asset-button-primary: url("../../assets/png/default/ui/menu/button_primary_normal.png");
+  --asset-button-primary-hover: url("../../assets/png/default/ui/menu/button_primary_hover.png");
+  --asset-button-primary-pressed: url("../../assets/png/default/ui/menu/button_primary_pressed.png");
+  --asset-button-primary-disabled: url("../../assets/png/default/ui/menu/button_primary_disabled.png");
+  --asset-button-secondary: url("../../assets/png/default/ui/menu/button_secondary_normal.png");
+  --asset-button-secondary-pressed: url("../../assets/png/default/ui/menu/button_secondary_pressed.png");
+  --asset-icon-plus: url("../../assets/png/default/ui/controls/icon_plus.png");
+  --asset-icon-minus: url("../../assets/png/default/ui/controls/icon_minus.png");
+  --asset-icon-back: url("../../assets/png/default/ui/controls/icon_turn_left.png");
   --menu-panel-slice: 32 40 fill;
   --modal-layer: 10;
 }
