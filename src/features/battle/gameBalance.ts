@@ -63,7 +63,7 @@ export const BATTLE_BALANCE = {
       ],
     },
     {
-      x: 690,
+      x: 735,
       y: 360,
       lobes: [
         { x: -40, y: -22, radius: 40 },

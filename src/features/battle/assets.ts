@@ -41,8 +41,8 @@ const assetUrls = {
     "../../../assets/png/default/ui/hud/enemy_health_fill_red.png",
     import.meta.url,
   ).href,
-  island: new URL(
-    "../../../assets/png/default/tiles/tile_25.png",
+  islandTiles: new URL(
+    "../../../assets/tilesheet/tiles_sheet.png",
     import.meta.url,
   ).href,
   ocean: new URL(

@@ -2,9 +2,10 @@ import {
   Application,
   Container,
   Graphics,
+  Rectangle,
   Sprite,
   TilingSprite,
-  type Texture,
+  Texture,
 } from "pixi.js";
 import { COMBAT_FEEDBACK, type GameBalance } from "./gameBalance";
 import type { Effect, Enemy, GameSnapshot, Ship } from "./model";
@@ -15,6 +16,61 @@ type ShipView = {
   sprite: Sprite;
   healthFill: Sprite;
 };
+
+const ISLAND_TILES = [
+  [6, 7, 8, 9],
+  [22, 23, 24, 25],
+  [38, 39, 40, 41],
+  [54, 55, 56, 57],
+] as const;
+
+const TILE_SIZE = 64;
+const TILES_PER_ROW = 16;
+
+// These contours sit below the land tiles. Their deliberately uneven edges
+// keep the shallow-water highlight from looking like a uniform outline.
+const SHALLOW_WATER_CONTOURS = [
+  {
+    alpha: 0.1,
+    points: [
+      -25, 32, -13, 3, 27, -16, 66, -23, 105, -16, 139, -25, 180, -15,
+      216, 5, 276, 29, 280, 68, 269, 100, 281, 138, 267, 176, 279, 216,
+      250, 278, 213, 274, 181, 282, 143, 271, 104, 280, 67, 270, 29, 280,
+      -20, 249, -14, 214, -25, 178, -16, 140, -26, 101, -15, 65,
+    ],
+  },
+  {
+    alpha: 0.13,
+    points: [
+      -16, 38, -7, 10, 32, -7, 68, -14, 106, -6, 140, -15, 177, -6,
+      212, 13, 267, 37, 271, 69, 260, 101, 272, 137, 258, 174, 270, 211,
+      243, 269, 210, 265, 179, 273, 142, 262, 105, 271, 70, 261, 33, 271,
+      -11, 241, -5, 210, -16, 176, -7, 140, -17, 103, -6, 68,
+    ],
+  },
+  {
+    alpha: 0.16,
+    points: [
+      -8, 43, 1, 15, 37, 1, 70, -6, 108, 2, 141, -7, 174, 2, 207, 20,
+      258, 43, 262, 70, 251, 102, 263, 136, 249, 171, 261, 207, 237, 260,
+      207, 256, 177, 264, 142, 253, 106, 262, 72, 252, 38, 262, -3, 234,
+      3, 207, -8, 174, 1, 140, -9, 105, 2, 71,
+    ],
+  },
+] as const;
+
+function islandTile(sheet: Texture, number: number): Texture {
+  const index = number - 1;
+  return new Texture({
+    source: sheet.source,
+    frame: new Rectangle(
+      (index % TILES_PER_ROW) * TILE_SIZE,
+      Math.floor(index / TILES_PER_ROW) * TILE_SIZE,
+      TILE_SIZE,
+      TILE_SIZE,
+    ),
+  });
+}
 
 export class BattleRenderer {
   private readonly app: Application;
@@ -39,36 +95,50 @@ export class BattleRenderer {
       height: balance.arena.height,
     });
     const islands = new Container();
+    const tileCache = new Map<number, Texture>();
+    const textureFor = (number: number) => {
+      let texture = tileCache.get(number);
+      if (!texture) {
+        texture = islandTile(textures.islandTiles, number);
+        tileCache.set(number, texture);
+      }
+      return texture;
+    };
     for (const [index, shape] of balance.islands.entries()) {
       const island = new Container();
+      island.pivot.set(TILE_SIZE * 2, TILE_SIZE * 2);
       island.position.set(shape.x, shape.y);
-      const shore = new Graphics();
-      const sand = new Graphics();
-      const vegetation = new Graphics();
-      const detailMask = new Graphics();
-      for (const lobe of shape.lobes) {
-        shore.circle(lobe.x, lobe.y, lobe.radius + 8).fill(0x79c6b1);
-        sand.circle(lobe.x, lobe.y, lobe.radius).fill(0xdcb679);
+      island.rotation = index === 0 ? 0 : Math.PI;
+      for (const contour of SHALLOW_WATER_CONTOURS) {
+        const shallowWater = new Graphics();
+        shallowWater.poly([...contour.points]).fill({
+          color: 0xd7fff0,
+          alpha: contour.alpha,
+        });
+        island.addChild(shallowWater);
       }
-      const foliage =
-        index === 0
-          ? [
-              -58, 4, -44, -20, -15, -29, 4, -47, 33, -34, 41, -8, 55, 11, 32,
-              29, -2, 35, -29, 34, -53, 21,
-            ]
-          : [
-              -60, -23, -38, -37, -10, -30, 16, -42, 47, -27, 55, -4, 31, 17,
-              15, 41, -20, 34, -43, 12, -61, 7,
-            ];
-      vegetation.poly(foliage).fill(0x72a553);
-      detailMask.poly(foliage).fill(0xffffff);
-      const landDetail = new Sprite(textures.island);
-      landDetail.anchor.set(0.5);
-      landDetail.width = 180;
-      landDetail.height = 160;
-      landDetail.alpha = 0.5;
-      landDetail.mask = detailMask;
-      island.addChild(shore, sand, vegetation, landDetail, detailMask);
+      for (const [row, numbers] of ISLAND_TILES.entries()) {
+        for (const [column, number] of numbers.entries()) {
+          const tile = new Sprite(textureFor(number));
+          tile.position.set(column * TILE_SIZE, row * TILE_SIZE);
+          island.addChild(tile);
+        }
+      }
+      const decoration = index === 0
+        ? [
+            { tile: 71, x: 52, y: 161 },
+            { tile: 66, x: 196, y: 108 },
+          ]
+        : [
+            { tile: 70, x: 177, y: 77 },
+            { tile: 72, x: 80, y: 182 },
+            { tile: 65, x: 190, y: 185 },
+          ];
+      for (const item of decoration) {
+        const sprite = new Sprite(textureFor(item.tile));
+        sprite.position.set(item.x, item.y);
+        island.addChild(sprite);
+      }
       islands.addChild(island);
     }
     this.app.stage.addChild(

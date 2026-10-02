@@ -66,7 +66,7 @@ test("moves, rotates and stops at arena and island boundaries", async ({
   const easternEdge = Math.min(
     ...islands[1].lobes.map((lobe) => islands[1].x + lobe.x - lobe.radius),
   );
-  expect(easternEdge - westernEdge).toBeGreaterThan(120);
+  expect(easternEdge - westernEdge).toBeGreaterThan(170);
   for (let index = 0; index < 15; index += 1) {
     await step(page, 10);
     const player = (await snapshot(page)).player;
@@ -233,7 +233,7 @@ test("the second island also blocks projectiles", async ({ page }) => {
   await page.keyboard.down("Space");
   await step(page, 1);
   await page.keyboard.up("Space");
-  await step(page, 80);
+  await step(page, 90);
   const blocked = await snapshot(page);
   expect(
     blocked.projectiles.filter((projectile) => projectile.owner === "player"),
