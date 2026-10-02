@@ -70,7 +70,7 @@ export const BATTLE_BALANCE = {
   chaser: {
     health: 2,
     radius: 21,
-    speed: 86,
+    speed: 80,
     turnSpeed: 2.6,
     impactDamage: 25,
   },
@@ -83,7 +83,7 @@ export const BATTLE_BALANCE = {
     preferredRange: 220,
     fireCooldown: 1.5,
     projectileDamage: 12,
-    projectileSpeedMultiplier: 0.75,
+    projectileSpeedMultiplier: 0.65,
   },
   projectile: { radius: 5, speed: 330, lifetime: 1.6, damage: 1 },
   weapons: { frontCooldown: 0.42, broadsideCooldown: 1.2 },

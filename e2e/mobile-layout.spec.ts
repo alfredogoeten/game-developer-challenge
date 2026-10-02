@@ -61,3 +61,53 @@ for (const viewport of viewports) {
     await expectFits(page);
   });
 }
+
+test("landscape touch menu keeps primary actions above the record actions", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium");
+  await page.setViewportSize({ width: 667, height: 375 });
+  await page.goto("/?e2e=1");
+  const positions = async () => page.evaluate(() => {
+    const rect = (name: string) => [...document.querySelectorAll<HTMLButtonElement>(".main-menu button")]
+      .find((button) => button.textContent?.trim().toLowerCase() === name)!
+      .getBoundingClientRect().toJSON();
+    return {
+      play: rect("play"), options: rect("options"),
+      lastResult: document.querySelector(".menu-actions .asset-button--secondary") ? rect("last result") : null,
+      ranking: rect("ranking"), history: rect("match history"),
+    };
+  });
+  for (const viewport of [{ width: 667, height: 375 }, { width: 568, height: 320 }]) {
+    await page.setViewportSize(viewport);
+    const initial = await positions();
+    expect(initial.play.top).toBeCloseTo(initial.options.top, 0);
+    expect(initial.ranking.top).toBeCloseTo(initial.history.top, 0);
+    expect(initial.ranking.top).toBeGreaterThan(initial.play.bottom);
+    expect(initial.play.height).toBeGreaterThan(initial.ranking.height);
+    await expectFits(page);
+  }
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await page.waitForFunction(() => Boolean(window.__pirateBattleTest));
+  await page.evaluate(() => {
+    window.__pirateBattleTest!.setElapsed(59.99);
+    window.__pirateBattleTest!.step(1);
+  });
+  await page.getByRole("button", { name: "Main Menu" }).click();
+  const withResult = await positions();
+  expect(withResult.lastResult).not.toBeNull();
+  expect(withResult.lastResult!.top).toBeCloseTo(withResult.ranking.top, 0);
+  expect(withResult.ranking.top).toBeCloseTo(withResult.history.top, 0);
+  await expectFits(page);
+});
+
+test("starting a match requests fullscreen on touch devices", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-chromium");
+  await page.addInitScript(() => {
+    (window as Window & { __fullscreenRequests?: number }).__fullscreenRequests = 0;
+    document.documentElement.requestFullscreen = async () => {
+      (window as Window & { __fullscreenRequests?: number }).__fullscreenRequests! += 1;
+    };
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  expect(await page.evaluate(() => (window as Window & { __fullscreenRequests?: number }).__fullscreenRequests)).toBe(1);
+});

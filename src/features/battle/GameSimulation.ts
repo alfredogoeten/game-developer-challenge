@@ -41,7 +41,10 @@ const SIMULATION_TUNING = {
   boundarySteeringWeight: 2.4,
   boundaryContactPadding: 3,
   boundaryEscapeInset: 105,
+  chaserRouteClearance: 4,
 } as const;
+
+type RoutePoint = { x: number; y: number };
 
 export class GameSimulation {
   readonly balance: GameBalance;
@@ -62,6 +65,7 @@ export class GameSimulation {
   private nextId = 1;
   private randomState: number;
   private readonly islandNavigation: { x: number; y: number; radius: number }[];
+  private readonly chaserWaypoints: RoutePoint[];
 
   constructor(balance: GameBalance, seed = 2026) {
     this.balance = balance;
@@ -82,6 +86,14 @@ export class GameSimulation {
       radius:
         Math.hypot(cornerCenter, cornerCenter) + ISLAND_LAND_CORNER_RADIUS,
     }));
+    const waypointOffset = ISLAND_LAND_HALF_SIZE + balance.chaser.radius +
+      SIMULATION_TUNING.shoreClearance + SIMULATION_TUNING.chaserRouteClearance;
+    this.chaserWaypoints = balance.islands.flatMap((island) =>
+      [-1, 1].flatMap((xSide) => [-1, 1].map((ySide) => ({
+        x: Math.max(balance.chaser.radius, Math.min(balance.arena.width - balance.chaser.radius, island.x + xSide * waypointOffset)),
+        y: Math.max(balance.chaser.radius, Math.min(balance.arena.height - balance.chaser.radius, island.y + ySide * waypointOffset)),
+      }))),
+    );
     this.spawnCooldown = balance.spawn.interval;
     this.randomState = seed >>> 0 || 1;
   }
@@ -216,9 +228,11 @@ export class GameSimulation {
         this.player.y,
         this.balance.projectile.radius,
       );
-      const desired =
-        enemy.escapeTime > 0
-          ? this.escapeBoundary(enemy)
+      if (enemy.kind === "chaser") this.moveShip(enemy, 0, 0);
+      const desired = enemy.escapeTime > 0
+        ? this.escapeBoundary(enemy)
+        : enemy.kind === "chaser"
+          ? this.chaserDirection(enemy, aim)
           : this.avoidIsland(enemy, aim);
       enemy.escapeTime = Math.max(0, enemy.escapeTime - dt);
       enemy.angle = turnToward(enemy.angle, desired, spec.turnSpeed * dt);
@@ -561,6 +575,44 @@ export class GameSimulation {
     )
       ship.avoidanceSide = ship.avoidanceSide === 1 ? -1 : 1;
     return this.steerFromBoundary(ship, routeAngle(ship.avoidanceSide));
+  }
+
+  private chaserDirection(ship: Enemy, directAngle: number) {
+    const points = [ship, ...this.chaserWaypoints, this.player];
+    const goal = points.length - 1;
+    const clearance = ship.radius + SIMULATION_TUNING.shoreClearance - 1;
+    const visible = (from: RoutePoint, to: RoutePoint) =>
+      !this.lineHitsIsland(from.x, from.y, to.x, to.y, clearance);
+    if (visible(ship, this.player)) return directAngle;
+
+    // A small visibility graph gives a shortest route around both islands.
+    // Recompute from the current positions so a moving player is always pursued.
+    const distance = points.map(() => Infinity);
+    const first = points.map(() => -1);
+    const visited = points.map(() => false);
+    distance[0] = 0;
+    for (let count = 0; count < points.length; count += 1) {
+      let current = -1;
+      for (let index = 0; index < points.length; index += 1)
+        if (!visited[index] && (current < 0 || distance[index] < distance[current]))
+          current = index;
+      if (current < 0 || !Number.isFinite(distance[current]) || current === goal) break;
+      visited[current] = true;
+      for (let next = 1; next < points.length; next += 1) {
+        if (visited[next] || !visible(points[current], points[next])) continue;
+        const cost = distance[current] + Math.hypot(
+          points[next].x - points[current].x,
+          points[next].y - points[current].y,
+        );
+        if (cost >= distance[next]) continue;
+        distance[next] = cost;
+        first[next] = current === 0 ? next : first[current];
+      }
+    }
+    const target = points[first[goal]];
+    return target
+      ? Math.atan2(target.y - ship.y, target.x - ship.x)
+      : this.avoidIsland(ship, directAngle);
   }
 
   private boundaryOverflow(ship: Ship, angle: number) {

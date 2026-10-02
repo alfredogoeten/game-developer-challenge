@@ -40,9 +40,9 @@ From a clean checkout, run `npm ci`, `npx playwright install chromium`, `npm run
 | Fire left / right broadside | `Q` / `E` | Left / right fire buttons |
 | Pause or resume | `Esc` | Pause / Resume button |
 
-Inputs can be held together. On phones, combat requires landscape orientation; portrait, lost focus, and a hidden tab pause the game. A match ends when time expires or player health reaches zero. Main Menu and page reload abandon an unfinished match.
+Inputs can be held together. Keyboard movement uses W/A/D only; the arrow keys have no gameplay bindings. On touch devices, Play requests fullscreen immediately. Browser fullscreen permission and support vary, so the game also fits the mobile viewport when the request is rejected. On phones, combat requires landscape orientation; portrait, lost focus, and a hidden tab pause the game. A match ends when time expires or player health reaches zero. Main Menu and page reload abandon an unfinished match.
 
-Chasers pursue and explode on the player; Shooters move into range and fire when an island does not block their shot. Islands block ships and projectiles. A destroyed enemy grants one point only when the player dealt the damage.
+Chasers recalculate a short route around islands as the player moves, pursue continuously, and explode on contact; Shooters move into range and fire when an island does not block their shot. Islands block ships and projectiles. A destroyed enemy grants one point only when the player dealt the damage.
 
 ## Options, results, and gameplay configuration
 
@@ -77,7 +77,7 @@ Select a scenario in the main menu, open the affected record screen or finish a 
 
 ## Tests, profiling, and deploy preparation
 
-The responsive layout is verified at 320×568, 667×375, 851×393, and 956×440. Short landscape viewports use the compact menu layout; the desktop battle view includes a thin keyboard-controls footer while touch layouts keep it hidden.
+The responsive layout checks cover 320×568, 568×320, 667×375, 851×393, and 956×440. In touch landscape, Play and Options share the first action row; Last Result (when available), Ranking, and Match History share a smaller row below. Desktop menu layout remains unchanged. The desktop battle view includes a thin keyboard-controls footer while touch layouts keep it hidden.
 
 Development builds opened with `?e2e=1` expose `window.__pirateBattleTest` only after assets load. Playwright advances the seeded fixed-step simulation, uses actual keyboard and pointer handlers, and observes snapshots. Each context uses isolated browser storage. Layout tests assert no document scrolling and reachable buttons at 320×568, 667×375, 851×393, and 956×440.
 

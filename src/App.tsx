@@ -135,6 +135,11 @@ function App() {
   }
 
   function startGame() {
+    if (window.matchMedia("(pointer: coarse)").matches && !document.fullscreenElement) {
+      void document.documentElement.requestFullscreen?.().catch(() => {
+        // Some mobile browsers do not allow the Fullscreen API.
+      });
+    }
     setBattleOptions({ ...gameOptions });
     matchIdRef.current = crypto.randomUUID();
     setBattleKey(matchIdRef.current);

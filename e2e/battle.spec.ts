@@ -269,6 +269,48 @@ test("a Chaser can navigate around the cover island", async ({ page }) => {
   expect((await snapshot(page)).player.health).toBe(75);
 });
 
+test("Chaser keeps closing on a player who moves behind an island", () => {
+  const balance = createGameBalance({
+    sessionDurationSeconds: 180,
+    enemySpawnIntervalSeconds: 10,
+  });
+  const simulation = new GameSimulation({
+    ...balance,
+    spawn: { ...balance.spawn, interval: 1000 },
+  });
+  simulation.player.x = 188;
+  simulation.player.y = 270;
+  simulation.debugSpawn("chaser", 590, 270);
+  for (let tick = 0; tick < 180; tick += 1) simulation.step(1 / 60, new Set());
+  const beforeMove = simulation.enemies[0];
+  expect(beforeMove).toBeDefined();
+  expect(Math.hypot(beforeMove.x - simulation.player.x, beforeMove.y - simulation.player.y)).toBeLessThan(402);
+  simulation.player.x = 188;
+  simulation.player.y = 410;
+  for (let tick = 0; tick < 900 && simulation.enemies.length; tick += 1)
+    simulation.step(1 / 60, new Set());
+  expect(simulation.enemies).toHaveLength(0);
+  expect(simulation.player.health).toBe(75);
+});
+
+test("arrow keys do not move or turn the player", async ({ page }) => {
+  await start(page);
+  const initial = (await snapshot(page)).player;
+  await page.keyboard.down("ArrowUp");
+  await page.keyboard.down("ArrowLeft");
+  await step(page, 60);
+  await page.keyboard.up("ArrowUp");
+  await page.keyboard.up("ArrowLeft");
+  const afterArrows = (await snapshot(page)).player;
+  expect(afterArrows.x).toBe(initial.x);
+  expect(afterArrows.y).toBe(initial.y);
+  expect(afterArrows.angle).toBe(initial.angle);
+  await page.keyboard.down("w");
+  await step(page, 10);
+  await page.keyboard.up("w");
+  expect((await snapshot(page)).player.x).toBeGreaterThan(initial.x);
+});
+
 for (const scenario of [
   { kind: "chaser" as const, x: 938, y: 518 },
   { kind: "shooter" as const, x: 938, y: 518 },

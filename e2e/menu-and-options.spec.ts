@@ -9,7 +9,7 @@ test("menu controls remain usable and fit the viewport", async ({ page }, testIn
   await expect(page.getByRole("button", { name: "Play", exact: true })).toBeEnabled();
   await expect(page.getByRole("button", { name: "Options" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Ranking" })).toBeVisible();
-  if (testInfo.project.name === "chromium") await expect(page.getByText("W or ↑")).toBeVisible();
+  if (testInfo.project.name === "chromium") await expect(page.getByText("W", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
