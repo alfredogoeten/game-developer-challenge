@@ -72,6 +72,7 @@ test("result visual baseline", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Battle Complete" }),
   ).toBeVisible();
+  await expect(page.getByText("Your match is recorded in Ranking and Match History.")).toBeVisible();
   await expect(page).toHaveScreenshot("result.png", {
     animations: "disabled",
     fullPage: true,

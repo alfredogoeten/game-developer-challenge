@@ -135,7 +135,9 @@ function App() {
   }
 
   function startGame() {
-    if (window.matchMedia("(pointer: coarse)").matches && !document.fullscreenElement) {
+    const touchDevice = navigator.maxTouchPoints > 0 || window.matchMedia("(pointer: coarse)").matches;
+    const automatedRun = import.meta.env.DEV && new URLSearchParams(location.search).has("e2e");
+    if (touchDevice && !automatedRun && !document.fullscreenElement) {
       void document.documentElement.requestFullscreen?.().catch(() => {
         // Some mobile browsers do not allow the Fullscreen API.
       });

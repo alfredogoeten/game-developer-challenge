@@ -67,7 +67,7 @@ for (const viewport of viewports) {
     if (viewport.width === 320) await page.setViewportSize({ width: 851, height: 393 });
     await page.getByRole("button", { name: "Resume", exact: true }).click();
     await page.evaluate(() => {
-      window.__pirateBattleTest!.setElapsed(59.99);
+      window.__pirateBattleTest!.setElapsed(119.99);
       window.__pirateBattleTest!.step(1);
     });
     await page.setViewportSize(viewport);
@@ -81,16 +81,22 @@ test("landscape touch menu keeps primary actions above the record actions", asyn
   test.skip(testInfo.project.name !== "mobile-chromium");
   await page.setViewportSize({ width: 667, height: 375 });
   await page.goto("/?e2e=1");
-  const positions = async () => page.evaluate(() => {
-    const rect = (name: string) => [...document.querySelectorAll<HTMLButtonElement>(".main-menu button")]
-      .find((button) => button.textContent?.trim().toLowerCase() === name)!
-      .getBoundingClientRect().toJSON();
-    return {
-      play: rect("play"), options: rect("options"),
-      lastResult: document.querySelector(".menu-actions .asset-button--secondary") ? rect("last result") : null,
-      ranking: rect("ranking"), history: rect("match history"),
+  const positions = async () => {
+    const button = async (name: string) => {
+      const box = await page.getByRole("button", { name, exact: true }).boundingBox();
+      return box && { top: box.y, bottom: box.y + box.height, height: box.height };
     };
-  });
+    const [play, options, lastResult, ranking, history] = await Promise.all([
+      button("Play"), button("Options"),
+      page.getByRole("button", { name: "Last Result" }).count().then((count) => count ? button("Last Result") : null),
+      button("Ranking"), button("Match History"),
+    ]);
+    expect(play).not.toBeNull();
+    expect(options).not.toBeNull();
+    expect(ranking).not.toBeNull();
+    expect(history).not.toBeNull();
+    return { play: play!, options: options!, lastResult, ranking: ranking!, history: history! };
+  };
   for (const viewport of [{ width: 667, height: 375 }, { width: 568, height: 320 }]) {
     await page.setViewportSize(viewport);
     const initial = await positions();
@@ -109,7 +115,7 @@ test("landscape touch menu keeps primary actions above the record actions", asyn
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.waitForFunction(() => Boolean(window.__pirateBattleTest));
   await page.evaluate(() => {
-    window.__pirateBattleTest!.setElapsed(59.99);
+    window.__pirateBattleTest!.setElapsed(119.99);
     window.__pirateBattleTest!.step(1);
   });
   await page.getByRole("button", { name: "Main Menu" }).click();
@@ -124,7 +130,7 @@ test("starting a match requests fullscreen on touch devices", async ({ page }, t
   test.skip(testInfo.project.name !== "mobile-chromium");
   await page.addInitScript(() => {
     (window as Window & { __fullscreenRequests?: number }).__fullscreenRequests = 0;
-    document.documentElement.requestFullscreen = async () => {
+    Element.prototype.requestFullscreen = async () => {
       (window as Window & { __fullscreenRequests?: number }).__fullscreenRequests! += 1;
     };
   });

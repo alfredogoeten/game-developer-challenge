@@ -65,10 +65,14 @@ test("starts with 100 HP and centered score and time panels", async ({ page }) =
     const hud = document.querySelector(".battle-hud")!.getBoundingClientRect();
     const health = document.querySelector(".hud-health")!.getBoundingClientRect();
     const actions = document.querySelector(".hud-actions")!.getBoundingClientRect();
-    return { hud, health, actions };
+    const counters = document.querySelector(".hud-counters")!.getBoundingClientRect();
+    return { hud, health, actions, counters };
   });
   expect(positions.health.left).toBeCloseTo(positions.hud.left, 0);
   expect(positions.actions.right).toBeCloseTo(positions.hud.right, 0);
+  expect(positions.counters.left + positions.counters.width / 2).toBeCloseTo(
+    positions.hud.left + positions.hud.width / 2, 0,
+  );
 });
 
 test("moves, rotates and stops at arena and island boundaries", async ({
@@ -438,6 +442,8 @@ test("finishes by time, records one match and starts a clean new game", async ({
   expect(restarted.score).toBe(0);
   expect(restarted.player.health).toBe(100);
   expect(restarted.elapsed).toBe(0);
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Game paused" })).toBeVisible();
   await page.getByRole("button", { name: "Main Menu" }).click();
   await page.getByRole("button", { name: "Leave Game" }).click();
   await page.reload();
@@ -599,7 +605,8 @@ test("shows keyboard controls in the desktop battle footer only", async ({
   page,
 }, testInfo) => {
   await start(page);
-  const footer = page.getByText(/W\/.*forward/);
+  const footer = page.locator(".battle-help");
+  await expect(footer).toContainText("W forward");
   if (testInfo.project.name === "mobile-chromium") {
     await expect(footer).toBeHidden();
   } else {
