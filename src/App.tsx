@@ -16,6 +16,12 @@ import type { MatchRecord } from "./features/matches/model";
 import { ResultScreen } from "./features/matches/ResultScreen";
 import { MainMenu } from "./features/menu/MainMenu";
 import { RecordsScreen } from "./features/menu/RecordsScreen";
+import {
+  loadScenario,
+  saveScenario,
+  type Scenario,
+} from "./mocks/scenarios";
+import { resetConfirmedMatches } from "./mocks/store";
 
 type Screen = "menu" | "options" | "ranking" | "history" | "battle" | "result";
 
@@ -26,7 +32,8 @@ function App() {
   const [battleOptions, setBattleOptions] = useState<GameOptions>(gameOptions);
   const [localMatches, setLocalMatches] = useState(loadLocalMatches);
   const localMatchesRef = useRef(localMatches);
-  const scenarioEpoch = 0;
+  const [activeScenario, setActiveScenario] = useState<Scenario>(loadScenario);
+  const [scenarioEpoch, setScenarioEpoch] = useState(0);
   const [syncRound, setSyncRound] = useState(0);
   const attemptedRef = useRef(new Set<string>());
   const syncingRef = useRef(false);
@@ -78,6 +85,28 @@ function App() {
   function retryPending() {
     attemptedRef.current.clear();
     setSyncRound((round) => round + 1);
+  }
+
+  function changeScenario(scenario: Scenario) {
+    if (scenario === activeScenario) return;
+    saveScenario(scenario);
+    void queryClient.cancelQueries({ queryKey: ["ranking"] });
+    void queryClient.cancelQueries({ queryKey: ["history"] });
+    setActiveScenario(scenario);
+    setScenarioEpoch((epoch) => epoch + 1);
+    setStatusMessage(`Network scenario changed to ${scenario.replaceAll("-", " ")}.`);
+  }
+
+  function resetDemoData() {
+    resetConfirmedMatches();
+    saveScenario("success");
+    void queryClient.cancelQueries({ queryKey: ["ranking"] });
+    void queryClient.cancelQueries({ queryKey: ["history"] });
+    queryClient.removeQueries({ queryKey: ["ranking"] });
+    queryClient.removeQueries({ queryKey: ["history"] });
+    setActiveScenario("success");
+    setScenarioEpoch((epoch) => epoch + 1);
+    setStatusMessage("Mock data reset. Local options and match results were kept.");
   }
 
   function openOptions() {
@@ -164,6 +193,9 @@ function App() {
           rankingButtonRef={rankingButtonRef}
           historyButtonRef={historyButtonRef}
           statusMessage={statusMessage}
+          activeScenario={activeScenario}
+          onScenarioChange={changeScenario}
+          onResetDemoData={resetDemoData}
         />
       ) : screen === "options" ? (
         <OptionsScreen

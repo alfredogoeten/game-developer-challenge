@@ -30,6 +30,12 @@ Ranking and Match History are separate screens, each mounted from a main menu ac
 
 In development, `?e2e=1` stops the automatic ticker and exposes a deterministic seeded test bridge. Playwright advances the same simulation rules in fixed ticks, uses the real keyboard and pointer handlers, and checks state through snapshots. It can also move elapsed time near the end threshold to verify the timer and result flow without running a full two-minute match. Visual baselines cover the menu, an initial arena frame, a projectile impact, and the result on desktop and mobile Chromium.
 
-## Current limits
+## Milestone verification and limits
 
-Audio, performance profiling, and public deployment are not part of this milestone. Browser storage can fail or be unavailable; in that case local result saving and mock persistence report an error rather than claiming that a record survived refresh.
+The tiled islands use rounded-square collision and projectile-cover geometry derived from their visible 4 × 4 land mass. This supersedes the earlier lobe description above: movement, spawning, cover checks, and navigation all use the rounded tile boundary.
+
+The main menu owns the active MSW scenario. A selection cancels ranking and history queries and advances their generation, so late responses cannot replace newer data. Reset clears confirmed mock records and returns to Success without touching options, local results, or pending registrations. Pagination remains interactive while a previous page request is in flight; query keys and cancellation keep the newest page authoritative.
+
+`npm run test:e2e` runs desktop and mobile Chromium gameplay, options, records, recovery, out-of-order response, touch, and visual checks. `npm run profile` opens the optimized preview with a 180-second configuration, records ticker frame intervals and entity count through an opt-in local `?profile=1` hook, and compares available Chromium heap readings before and after five start/leave cycles. Its measured JSON is stored in `reports/profiling.json`.
+
+Audio remains outside the current gameplay scope. Browser storage can fail or be unavailable; in that case local result saving and mock persistence report an error rather than claiming that a record survived refresh. The challenge-supplied assets have no license metadata in the repository. Vercel configuration is included, but a public URL requires an authorized Vercel account to link and deploy the repository.

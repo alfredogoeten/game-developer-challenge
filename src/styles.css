@@ -242,6 +242,36 @@ select:focus-visible {
 .records-pagination { margin-top: var(--space-3); }
 .pending-notice { margin-top: var(--space-3); font-size: var(--font-size-small); }
 
+.network-scenarios {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  padding: var(--space-3);
+  border: 1px solid var(--color-gold);
+  border-radius: var(--radius-small);
+  background: var(--color-overlay);
+  text-align: left;
+}
+.network-scenarios h2,
+.network-scenarios p { margin: 0; }
+.network-scenarios h2 {
+  color: var(--color-gold-light);
+  font-size: var(--font-size-label);
+  text-transform: uppercase;
+}
+.network-scenarios label,
+.network-scenarios p { font-size: var(--font-size-small); }
+.network-scenarios p { color: var(--color-ivory-muted); line-height: var(--line-height-body); }
+.network-scenarios select {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: var(--space-2);
+  border: 1px solid var(--color-gold);
+  border-radius: var(--radius-small);
+  background: var(--color-panel-surface);
+  color: var(--color-ivory);
+}
+
 .demo-data-actions {
   display: flex;
   align-items: center;

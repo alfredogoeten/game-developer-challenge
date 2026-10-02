@@ -7,10 +7,20 @@ export type BattleTestBridge = {
   setElapsed: (seconds: number) => void;
 };
 
+export type BattleProfile = {
+  snapshot: () => {
+    frameCount: number;
+    meanFrameMs: number;
+    p95FrameMs: number;
+    maxEntities: number;
+  };
+};
+
 declare global {
   interface Window {
     __pirateBattleTest?: BattleTestBridge;
     __allowMatchSave?: () => void;
     __pirateBattleFailAssetAttempts?: number;
+    __pirateBattleProfile?: BattleProfile;
   }
 }

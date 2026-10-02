@@ -78,11 +78,11 @@ test("confirms before discarding unsaved selections", async ({ page }) => {
 
   const sessionTime = optionValue(page, "sessionDurationSeconds");
   await page
-    .getByRole("button", { name: "Decrease Game session time" })
+    .getByRole("button", { name: "Increase Game session time" })
     .click();
-  await expect(sessionTime).toHaveText("60 s");
+  await expect(sessionTime).toHaveText("180 s");
   await expect(
-    page.getByRole("button", { name: "Decrease Game session time" }),
+    page.getByRole("button", { name: "Increase Game session time" }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "Back to main menu" }).click();
 
@@ -99,7 +99,7 @@ test("confirms before discarding unsaved selections", async ({ page }) => {
   await page.keyboard.press("Tab");
   await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
   await dialog.getByRole("button", { name: "Cancel" }).click();
-  await expect(sessionTime).toHaveText("60 s");
+  await expect(sessionTime).toHaveText("180 s");
 
   await page.getByRole("button", { name: "Back to main menu" }).click();
   await dialog.getByRole("button", { name: "Discard changes" }).click();
@@ -121,7 +121,7 @@ test("returns home with Escape and confirms unsaved changes", async ({
 
   await page.getByRole("button", { name: "Options" }).click();
   await page
-    .getByRole("button", { name: "Decrease Game session time" })
+    .getByRole("button", { name: "Increase Game session time" })
     .click();
   await page.keyboard.press("Escape");
   const dialog = page.getByRole("dialog");
@@ -131,7 +131,7 @@ test("returns home with Escape and confirms unsaved changes", async ({
   await expect(
     page.getByRole("button", { name: "Back to main menu" }),
   ).toBeFocused();
-  await expect(optionValue(page, "sessionDurationSeconds")).toHaveText("60 s");
+  await expect(optionValue(page, "sessionDurationSeconds")).toHaveText("180 s");
 
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();

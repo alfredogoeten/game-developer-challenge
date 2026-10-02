@@ -11,7 +11,11 @@ dist/
 playwright-report/
 test-results/
 blob-report/
-reports/
+reports/*
+!reports/profiling.json
+!reports/README.md
+!reports/playwright/
+!reports/playwright/**
 
 # TypeScript incremental build data
 *.tsbuildinfo

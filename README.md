@@ -1,6 +1,6 @@
 # Pirate Battle
 
-A browser-based, single-player naval shooter built with React, TypeScript, and PixiJS. Ranking and Match History use a browser-hosted MSW API, Axios, and TanStack Query. Profiling and deployment remain future milestones.
+A browser-based, single-player naval shooter built with React, TypeScript, and PixiJS. Ranking and Match History use a browser-hosted MSW API, Axios, and TanStack Query. It includes reproducible network scenarios, visual regression checks, and a production-preview profiling harness.
 
 ## Requirements and setup
 
@@ -23,6 +23,7 @@ On PowerShell installations that block `npm.ps1`, use `npm.cmd` instead of `npm`
 | `npm run typecheck` | Check TypeScript without emitting source files. |
 | `npm run test:e2e` | Run desktop and mobile Chromium Playwright tests. |
 | `npm run test:e2e:ui` | Open the interactive Playwright runner. |
+| `npm run profile` | Build the app and write a Chromium production-preview performance report to `reports/profiling.json`. |
 
 The E2E suite writes an HTML report to `reports/playwright/` and retains traces for failed tests. Screenshot baselines for Windows Chromium are stored under `e2e/visual.spec.ts-snapshots/`. The MSW worker is stored in `public/mockServiceWorker.js` and is included in production builds. No environment variables or private services are required.
 
@@ -59,7 +60,7 @@ The main menu opens **Ranking** and **Match History** as separate screens, each 
 
 The browser API has three routes: `GET /api/ranking?config=<encoded configuration>&page=<n>`, `GET /api/matches?playerId=<id>&page=<n>`, and `POST /api/matches` with a `MatchRecord` JSON body. `matchId` is the idempotency key. A repeated POST returns the existing record and cannot create a second ranking or history entry. Axios sends the requests; TanStack Query handles consultation, registration, retries for transient query failures, cache, and invalidation. The MSW worker starts before the app renders in development and preview/production builds. If it cannot start, the local game still works and the remote screens show an error.
 
-The reproducible MSW scenarios are configured by the test suite through `pirate-battle.network.v1`; they cover empty results, multiple pages, slow or variable latency, out-of-order responses, timeout, connection failure, HTTP 400/500, isolated ranking or history failures, a timeout after a POST was committed, and unavailable registration.
+Use the **Network scenario** selector in the main menu to reproduce empty results, multiple pages, slow or variable latency, out-of-order responses, timeouts, connection and HTTP failures, isolated screen failures, a timeout after POST commit, and unavailable registration. Choosing another scenario cancels outstanding ranking and history requests, so a late response cannot replace current data. **Reset mock data** returns to Success and clears only confirmed MSW records; saved options, the last result, and local pending submissions remain available.
 
 For reproducible latency tests, URL parameters `networkSeed=<0..5000>` and `networkDelayMs=<0..5000>` control the deterministic variation and delay in milliseconds. The defaults are seed 41, slow delay 700 ms, out-of-order delay 850 ms, and timeout delay 1800 ms. Timeout delays have a 1300 ms minimum so they exceed the Axios 1200 ms timeout. The test clock remains controlled separately by `?e2e=1` in development.
 
@@ -69,4 +70,12 @@ The gameplay balance lives in `src/features/battle/gameBalance.ts`; movement, he
 
 Development builds opened with `?e2e=1` expose `window.__pirateBattleTest` after assets load. Playwright uses its seeded simulation clock to observe snapshots, step fixed ticks, place an enemy, and set elapsed time near the end of a match. The bridge is absent from production builds. Each Playwright context starts with isolated browser storage.
 
-The supplied visual assets are under `assets/`. The challenge brief is preserved in [CHALLENGE.md](CHALLENGE.md), and implementation decisions are in [ARCHITECTURE.md](ARCHITECTURE.md).
+## Performance and deployment
+
+Run `npm run profile` on the intended reference machine after installing Chromium for Playwright. The generated [profiling report](reports/profiling.json) records mean and 95th-percentile frame intervals, maximum entities, available Chromium heap readings before and after five start/leave cycles, and its measurement environment. Headless Chromium may not expose `performance.memory`; the report records `null` in that case instead of estimating memory use.
+
+The checked-in capture ran on Chromium 153 headless at 1440 × 900 with a 180-second game and 10-second spawns. It observed 29.81 ms mean frame time (about 33.5 FPS), 33.40 ms p95, and seven maximum entities; it therefore does not meet the 60 FPS / 16.67 ms target in this headless environment. The heap reading remained 10,000,000 bytes across five start/leave cycles, but Chromium exposes that value at coarse granularity. Hardware inventory was unavailable to the sandbox, so repeat the command in the intended interactive reference browser before using the result as a release performance claim.
+
+Vercel is configured through [vercel.json](vercel.json) to build with `npm run build` and serve `dist`. Import the GitHub repository in Vercel or run `vercel --prod` from the repository root while authenticated, then validate the deployed URL after a refresh: the canvas, assets, MSW service worker, Ranking, Match History, and a completed-match registration must all work. The public URL will be added once the repository is linked to an authorized Vercel account.
+
+The supplied visual and audio assets are under `assets/`. They were provided with the challenge; no license file or attribution metadata was supplied, so their license is documented as unknown. The challenge brief is preserved in [CHALLENGE.md](CHALLENGE.md), and implementation decisions are in [ARCHITECTURE.md](ARCHITECTURE.md).

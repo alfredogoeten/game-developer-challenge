@@ -43,7 +43,6 @@ test("opens Ranking as a screen and paginates it", async ({ page }) => {
 
 test("filters Ranking by saved options", async ({ page }) => {
   await page.getByRole("button", { name: "Options" }).click();
-  await page.getByRole("button", { name: "Decrease Game session time" }).click();
   await page.getByRole("button", { name: "Increase Enemy spawn time" }).click();
   await page.getByRole("button", { name: "Increase Enemy spawn time" }).click();
   await page.getByRole("button", { name: "Save" }).click();
@@ -76,4 +75,52 @@ test("returns from Match History with Escape and restores focus", async ({ page 
   await openRecords(page, "Match History");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("button", { name: "Match History" })).toBeFocused();
+});
+
+test("selects a network scenario from the menu and resets confirmed mock data", async ({
+  page,
+}) => {
+  await page.selectOption("#network-scenario", "ranking-error");
+  const ranking = await openRecords(page, "Ranking");
+  await expect(ranking.getByRole("alert")).toContainText("Could not load ranking.");
+  await returnToMenu(page);
+
+  await page.selectOption("#network-scenario", "success");
+  await completeMatch(page);
+  await expect(page.getByText("Recorded", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Main Menu" }).click();
+  await page.getByRole("button", { name: "Reset mock data" }).click();
+
+  const history = await openRecords(page, "Match History");
+  await expect(history.getByText("No completed matches to show.")).toBeVisible();
+  await returnToMenu(page);
+  await expect(page.locator("#network-scenario")).toHaveValue("success");
+  await expect(page.getByRole("button", { name: "Last Result" })).toBeVisible();
+});
+
+test("recovers a post-commit timeout through the menu scenario controls", async ({
+  page,
+}) => {
+  await page.selectOption("#network-scenario", "post-commit-timeout");
+  await completeMatch(page);
+  await expect(page.getByText("Pending", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Main Menu" }).click();
+
+  await page.selectOption("#network-scenario", "success");
+  await page.getByRole("button", { name: "Retry Sync" }).click();
+  await page.getByRole("button", { name: "Last Result" }).click();
+  await expect(page.getByText("Recorded", { exact: true })).toBeVisible();
+});
+
+test("keeps the newest page when out-of-order responses finish", async ({
+  page,
+}) => {
+  await page.selectOption("#network-scenario", "out-of-order");
+  const ranking = await openRecords(page, "Ranking");
+  await expect(ranking.getByText("Page 1 of 3")).toBeVisible();
+  await ranking.getByRole("button", { name: "Next page" }).click();
+  await ranking.getByRole("button", { name: "Next page" }).click();
+  await expect(ranking.getByText("Page 3 of 3")).toBeVisible();
+  await page.waitForTimeout(1000);
+  await expect(ranking.getByText("Page 3 of 3")).toBeVisible();
 });

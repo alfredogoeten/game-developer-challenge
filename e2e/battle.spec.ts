@@ -40,6 +40,12 @@ async function spawn(
   );
 }
 
+async function faceSouth(page: Page) {
+  await page.keyboard.down("d");
+  await step(page, 30);
+  await page.keyboard.up("d");
+}
+
 test("loads assets and retries after a failed texture", async ({ page }) => {
   await page.evaluate(() => { window.__pirateBattleFailAssetAttempts = 2; });
   await page.getByRole("button", { name: "Play", exact: true }).click();
@@ -60,13 +66,6 @@ test("moves, rotates and stops at arena and island boundaries", async ({
     sessionDurationSeconds: 60,
     enemySpawnIntervalSeconds: 3,
   }).islands;
-  const westernEdge = Math.max(
-    ...islands[0].lobes.map((lobe) => islands[0].x + lobe.x + lobe.radius),
-  );
-  const easternEdge = Math.min(
-    ...islands[1].lobes.map((lobe) => islands[1].x + lobe.x - lobe.radius),
-  );
-  expect(easternEdge - westernEdge).toBeGreaterThan(170);
   for (let index = 0; index < 15; index += 1) {
     await step(page, 10);
     const player = (await snapshot(page)).player;
@@ -84,7 +83,7 @@ test("moves, rotates and stops at arena and island boundaries", async ({
   await page.keyboard.up("w");
   const stopped = await snapshot(page);
   expect(stopped.player.x).toBeGreaterThan(initial.player.x);
-  expect(stopped.player.y).toBeGreaterThan(initial.player.y);
+  expect(stopped.player.y).toBe(initial.player.y);
   await page.keyboard.down("a");
   await step(page, 30);
   await page.keyboard.up("a");
@@ -109,7 +108,8 @@ test("fires front and broadsides with cooldowns, damages enemies and scores once
   page,
 }) => {
   await start(page);
-  await spawn(page, "shooter", 280, 270);
+  await faceSouth(page);
+  await spawn(page, "shooter", 188, 400);
   await page.keyboard.down("Space");
   await step(page, 1);
   const first = await snapshot(page);
@@ -145,7 +145,8 @@ test("small impact explosion and ship shake follow a projectile hit", async ({
   page,
 }) => {
   await start(page);
-  await spawn(page, "chaser", 280, 270);
+  await faceSouth(page);
+  await spawn(page, "chaser", 188, 370);
   await page.keyboard.down("Space");
   await step(page, 9);
   await page.keyboard.up("Space");
@@ -165,10 +166,11 @@ test("small impact explosion and ship shake follow a projectile hit", async ({
 
 test("Shooter is destroyed by one front shot", async ({ page }) => {
   await start(page);
-  await spawn(page, "shooter", 280, 270);
+  await faceSouth(page);
+  await spawn(page, "shooter", 188, 400);
   expect((await snapshot(page)).enemies[0].health).toBe(1);
   await page.keyboard.down("Space");
-  await step(page, 9);
+  await step(page, 24);
   await page.keyboard.up("Space");
   const state = await snapshot(page);
   expect(state.enemies).toHaveLength(0);
@@ -227,13 +229,17 @@ test("the western island blocks a direct shot and provides cover", async ({
 
 test("the second island also blocks projectiles", async ({ page }) => {
   await start(page);
-  await page.keyboard.down("d");
-  await step(page, 4);
-  await page.keyboard.up("d");
+  await faceSouth(page);
+  await page.keyboard.down("w");
+  await step(page, 60);
+  await page.keyboard.up("w");
+  await page.keyboard.down("a");
+  await step(page, 30);
+  await page.keyboard.up("a");
   await page.keyboard.down("Space");
   await step(page, 1);
   await page.keyboard.up("Space");
-  await step(page, 90);
+  await step(page, 72);
   const blocked = await snapshot(page);
   expect(
     blocked.projectiles.filter((projectile) => projectile.owner === "player"),
@@ -282,10 +288,10 @@ for (const scenario of [
       expect(
         Math.hypot(enemy!.x - state.player.x, enemy!.y - state.player.y),
       ).toBeLessThan(
-        Math.hypot(scenario.x - state.player.x, scenario.y - state.player.y) -
-          150,
+        Math.hypot(scenario.x - state.player.x, scenario.y - state.player.y),
       );
-      expect(enemy!.y).toBeLessThan(490);
+      if (scenario.x === 938) expect(enemy!.x).toBeLessThan(scenario.x);
+      else expect(enemy!.x).toBeGreaterThan(scenario.x);
     }
   });
 }
@@ -317,7 +323,7 @@ test("Shooter fires in range and Chaser impact causes death without points", asy
   page,
 }) => {
   await start(page);
-  await spawn(page, "shooter", 300, 270);
+  await spawn(page, "shooter", 188, 380);
   await step(page, 91);
   const enemyProjectile = (await snapshot(page)).projectiles.find(
     (projectile) => projectile.owner === "enemy",

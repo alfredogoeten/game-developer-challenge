@@ -1,3 +1,4 @@
+import { SCENARIOS, type Scenario } from "../../mocks/scenarios";
 import type { RefObject } from "react";
 
 const CONTROL_HINTS = [
@@ -22,6 +23,9 @@ type MainMenuProps = {
   rankingButtonRef: RefObject<HTMLButtonElement | null>;
   historyButtonRef: RefObject<HTMLButtonElement | null>;
   statusMessage: string;
+  activeScenario: Scenario;
+  onScenarioChange: (scenario: Scenario) => void;
+  onResetDemoData: () => void;
 };
 
 export function MainMenu({
@@ -38,6 +42,9 @@ export function MainMenu({
   rankingButtonRef,
   historyButtonRef,
   statusMessage,
+  activeScenario,
+  onScenarioChange,
+  onResetDemoData,
 }: MainMenuProps) {
   return (
     <section className="menu-panel" aria-labelledby="menu-title">
@@ -110,6 +117,31 @@ export function MainMenu({
           <button className="hud-button" disabled={syncing} onClick={onRetryPending} type="button">{syncing ? "Syncing…" : "Retry Sync"}</button>
         </div>
       ) : null}
+      <section aria-labelledby="network-scenario-title" className="network-scenarios">
+        <h2 id="network-scenario-title">Network scenario</h2>
+        <label htmlFor="network-scenario">
+          Simulate the ranking and match history API
+        </label>
+        <select
+          id="network-scenario"
+          onChange={(event) => onScenarioChange(event.target.value as Scenario)}
+          value={activeScenario}
+        >
+          {SCENARIOS.map(([id, label]) => (
+            <option key={id} value={id}>{label}</option>
+          ))}
+        </select>
+        <button
+          className="hud-button"
+          onClick={onResetDemoData}
+          type="button"
+        >
+          Reset mock data
+        </button>
+        <p>
+          Resets the scenario and confirmed mock records. Your saved options and local results stay on this device.
+        </p>
+      </section>
       <p aria-live="polite" className="screen-reader-status" role="status">
         {statusMessage}
       </p>

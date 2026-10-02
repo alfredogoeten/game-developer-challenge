@@ -61,6 +61,9 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
     let accumulator = 0;
     let lastHudUpdate = 0;
     let bridge: BattleTestBridge | null = null;
+    const profiling = new URLSearchParams(location.search).has("profile");
+    const frameTimes: number[] = [];
+    let maxEntities = 0;
     const simulation = new GameSimulation(
       balance,
       import.meta.env.DEV && new URLSearchParams(location.search).has("e2e")
@@ -84,6 +87,15 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
       input?.clear();
       publish(true);
       onFinishRef.current(simulation.snapshot());
+    };
+    const recordFrame = (frameMs: number) => {
+      if (!profiling || frameMs <= 0 || frameMs > 250) return;
+      frameTimes.push(frameMs);
+      const state = simulation.snapshot();
+      maxEntities = Math.max(
+        maxEntities,
+        1 + state.enemies.length + state.projectiles.length + state.effects.length,
+      );
     };
 
     async function initialize() {
@@ -129,6 +141,22 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           },
         );
         inputRef.current = input;
+        if (profiling) {
+          window.__pirateBattleProfile = {
+            snapshot: () => {
+              const sorted = [...frameTimes].sort((left, right) => left - right);
+              const total = frameTimes.reduce((sum, value) => sum + value, 0);
+              return {
+                frameCount: frameTimes.length,
+                meanFrameMs: frameTimes.length ? total / frameTimes.length : 0,
+                p95FrameMs: sorted.length
+                  ? sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)]
+                  : 0,
+                maxEntities,
+              };
+            },
+          };
+        }
         const e2e =
           import.meta.env.DEV &&
           new URLSearchParams(location.search).has("e2e");
@@ -170,6 +198,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           window.__pirateBattleTest = bridge;
         } else {
           app.ticker.add((ticker) => {
+            recordFrame(ticker.deltaMS);
             if (simulation.paused || simulation.ended) {
               accumulator = 0;
               publish();
@@ -206,6 +235,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
       inputRef.current = null;
       if (window.__pirateBattleTest === bridge)
         delete window.__pirateBattleTest;
+      if (!profiling) delete window.__pirateBattleProfile;
       if (applicationReady) application?.destroy(true, { children: true });
       simulationRef.current = null;
     };
