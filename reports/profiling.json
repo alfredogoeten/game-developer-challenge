@@ -1,0 +1,23 @@
+{
+  "capturedAt": "2026-10-02T11:17:31.673Z",
+  "environment": {
+    "browser": "153.0.8010.12",
+    "viewport": "1440x900",
+    "mode": "Chromium headless, Vite production preview"
+  },
+  "configuration": {
+    "durationSeconds": 180,
+    "enemySpawnIntervalSeconds": 10
+  },
+  "performance": {
+    "frameCount": 3352,
+    "meanFrameMs": 29.8135143197984,
+    "p95FrameMs": 33.40000000000873,
+    "maxEntities": 7
+  },
+  "memoryBytes": {
+    "beforeFiveCycles": 10000000,
+    "afterFiveCycles": 10000000
+  },
+  "completedMatch": true
+}
