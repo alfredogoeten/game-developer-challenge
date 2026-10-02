@@ -26,29 +26,43 @@ async function expectFits(page: Page) {
   }
 }
 
+async function expectMobilePanelHeight(page: Page, selector: string) {
+  const size = await page.locator(selector).evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    viewportHeight: document.documentElement.clientHeight,
+  }));
+  expect(size.height).toBeGreaterThanOrEqual(size.viewportHeight * 0.75 - 1);
+}
+
 for (const viewport of viewports) {
-  test(`all mobile screens and dialogs fit ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`all mobile screens and dialogs fit ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     await page.goto("/?e2e=1");
     await expectFits(page);
+    if (testInfo.project.name === "mobile-chromium") await expectMobilePanelHeight(page, ".main-menu");
     await page.getByRole("button", { name: "Options" }).click();
     await expectFits(page);
+    if (testInfo.project.name === "mobile-chromium") await expectMobilePanelHeight(page, ".options-panel");
     await page.getByRole("button", { name: "MAIN MENU" }).click();
     await page.getByRole("button", { name: "Ranking" }).click();
     await expect(page.getByText(/Page 1 of/)).toBeVisible();
     await expectFits(page);
+    if (testInfo.project.name === "mobile-chromium") await expectMobilePanelHeight(page, ".records-screen");
     await page.getByRole("button", { name: "Back to main menu" }).click();
     await page.getByRole("button", { name: "Match History" }).click();
     await expectFits(page);
+    if (testInfo.project.name === "mobile-chromium") await expectMobilePanelHeight(page, ".records-screen");
     await page.getByRole("button", { name: "Back to main menu" }).click();
     if (viewport.width === 320) await page.setViewportSize({ width: 851, height: 393 });
     await page.getByRole("button", { name: "Play", exact: true }).click();
     await page.waitForFunction(() => Boolean(window.__pirateBattleTest));
     await page.keyboard.press("Escape");
+    if (testInfo.project.name === "mobile-chromium") await expectMobilePanelHeight(page, ".game-modal-panel");
     await page.getByRole("dialog", { name: "Game paused" }).getByRole("button", { name: "Main Menu" }).click();
     await page.setViewportSize(viewport);
     await expect(page.getByRole("dialog", { name: "Leave game" })).toBeVisible();
     await expectFits(page);
+    if (testInfo.project.name === "mobile-chromium") await expectMobilePanelHeight(page, ".game-modal-panel");
     await page.getByRole("button", { name: "Keep Playing" }).click();
     if (viewport.width === 320) await page.setViewportSize({ width: 851, height: 393 });
     await page.getByRole("button", { name: "Resume", exact: true }).click();
@@ -59,6 +73,7 @@ for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     await expect(page.getByRole("heading", { name: "Battle Complete" })).toBeVisible();
     await expectFits(page);
+    if (testInfo.project.name === "mobile-chromium") await expectMobilePanelHeight(page, ".result-panel");
   });
 }
 
@@ -83,6 +98,12 @@ test("landscape touch menu keeps primary actions above the record actions", asyn
     expect(initial.ranking.top).toBeCloseTo(initial.history.top, 0);
     expect(initial.ranking.top).toBeGreaterThan(initial.play.bottom);
     expect(initial.play.height).toBeGreaterThan(initial.ranking.height);
+    await expectMobilePanelHeight(page, ".main-menu");
+    const bottomSpace = await page.locator(".main-menu").evaluate((panel) =>
+      panel.getBoundingClientRect().bottom -
+      panel.querySelector(".network-scenarios")!.getBoundingClientRect().bottom,
+    );
+    expect(bottomSpace).toBeLessThan(40);
     await expectFits(page);
   }
   await page.getByRole("button", { name: "Play", exact: true }).click();

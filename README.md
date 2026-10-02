@@ -77,7 +77,7 @@ Select a scenario in the main menu, open the affected record screen or finish a 
 
 ## Tests, profiling, and deploy preparation
 
-The responsive layout checks cover 320×568, 568×320, 667×375, 851×393, and 956×440. In touch landscape, Play and Options share the first action row; Last Result (when available), Ranking, and Match History share a smaller row below. Desktop menu layout remains unchanged. The desktop battle view includes a thin keyboard-controls footer while touch layouts keep it hidden.
+The responsive layout checks cover 320×568, 568×320, 667×375, 851×393, and 956×440. On compact touch viewports, menu screens and dialogs use at least 75dvh; the home distributes its title, action rows, and network selector through that space. In touch landscape, Play and Options share the first action row; Last Result (when available), Ranking, and Match History share a smaller row below. Desktop menu layout remains unchanged. The desktop battle view includes a thin keyboard-controls footer while touch layouts keep it hidden.
 
 Development builds opened with `?e2e=1` expose `window.__pirateBattleTest` only after assets load. Playwright advances the seeded fixed-step simulation, uses actual keyboard and pointer handlers, and observes snapshots. Each context uses isolated browser storage. Layout tests assert no document scrolling and reachable buttons at 320×568, 667×375, 851×393, and 956×440.
 

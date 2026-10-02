@@ -34,7 +34,7 @@ Ranking query keys include canonical configuration, page, page size, and scenari
 
 ## Verification and limitations
 
-The responsive checks cover desktop and mobile Chromium at 320×568, 568×320, 667×375, 851×393, and 956×440. Touch landscape menus place Play and Options together above a row for Last Result, Ranking, and Match History; when Last Result is unavailable, the remaining two actions stay centered. Desktop menus retain their layout. Starting a touch match requests fullscreen during the Play gesture, subject to browser support. The desktop battle view exposes a thin gameplay-controls footer, while touch layouts hide that footer. Keyboard movement is W/A/D only; arrow keys are unbound.
+The responsive checks cover desktop and mobile Chromium at 320×568, 568×320, 667×375, 851×393, and 956×440. Compact touch menus and modal panels have a 75dvh minimum height. The home distributes its content vertically within that space; in landscape, Play and Options sit above Last Result, Ranking, and Match History, with the two record actions centered when Last Result is unavailable. Desktop menus retain their layout. Starting a touch match requests fullscreen during the Play gesture, subject to browser support. The desktop battle view exposes a thin gameplay-controls footer, while touch layouts hide that footer. Keyboard movement is W/A/D only; arrow keys are unbound.
 
 `?e2e=1` in development stops the ticker and provides a seeded test bridge that advances the real fixed-step simulation. Playwright uses keyboard and pointer events, covers gameplay and recovery flows on desktop and mobile Chromium, asserts no scrolling at 320×568, 667×375, 851×393, and 956×440, and versions visual baselines for menu, Options, arena, red ship bars, impact, and result.
 

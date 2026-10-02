@@ -1010,6 +1010,31 @@ select:focus-visible {
   .game-modal-panel .dialog-actions { margin-top: .2rem; }
 }
 
+@media (pointer: coarse) and (max-height: 600px),
+       (pointer: coarse) and (max-width: 600px) {
+  .menu-panel,
+  .game-modal-panel,
+  .confirmation-dialog {
+    min-height: 75dvh;
+  }
+  .main-menu {
+    display: grid;
+    align-content: space-between;
+  }
+  .main-menu .menu-actions,
+  .main-menu .menu-footer-actions {
+    width: 100%;
+  }
+  .main-menu .menu-footer-actions .asset-button {
+    width: 100%;
+  }
+  .game-modal-panel,
+  .confirmation-dialog {
+    align-content: center;
+  }
+  .confirmation-dialog { display: grid; }
+}
+
 @media (min-width: 601px) and (max-height: 600px) {
   .main-menu { display: grid; grid-template-columns: 1fr 1fr; column-gap: .7rem; align-items: center; max-height: calc(100dvh - .7rem); }
   .main-menu h1, .main-menu .game-title { grid-column: 1 / -1; }
@@ -1019,7 +1044,6 @@ select:focus-visible {
   .main-menu .network-scenarios { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; margin: .15rem 0 0; }
   .main-menu .screen-reader-status { display: none; }
   .options-panel, .result-panel { max-width: 38rem; }
-  .options-fields { grid-template-columns: 1fr 1fr; gap: .6rem; }
   .option-control { gap: .25rem; }
   .records-screen { max-width: 42rem; }
   .battle-hud { justify-content: space-between; }
