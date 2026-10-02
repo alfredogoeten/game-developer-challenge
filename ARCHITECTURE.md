@@ -1,5 +1,7 @@
 # Architecture
 
+The initial implementation estimate for this challenge was **3 business days**.
+
 ## Boundaries and React/PixiJS integration
 
 `options` owns validated `GameOptions` and its local persistence. Each adjustment writes storage before changing React state; a failed write leaves both the displayed and `App` values unchanged. `battle` owns typed balance, simulation, input, asset loading, PixiJS rendering, and the small React HUD sample. `matches` owns `MatchRecord`, browser persistence, API client, and result UI. `menu` owns navigation and remote-record views. `App.tsx` coordinates screens, the immutable options snapshot captured when Play starts, the latest completed record, and pending registration.
@@ -32,8 +34,10 @@ Ranking query keys include canonical configuration, page, page size, and scenari
 
 ## Verification and limitations
 
-`?e2e=1` in development stops the ticker and provides a seeded test bridge that advances the real fixed-step simulation. Playwright uses keyboard and pointer events, covers gameplay and recovery flows on desktop and mobile Chromium, asserts no scrolling at 320×568, 667×375, and 851×393, and versions visual baselines for menu, Options, arena, red ship bars, impact, and result.
+The responsive verification covers desktop and mobile Chromium at 320×568, 667×375, 851×393, and 956×440. Short landscape viewports use compact menus; the desktop battle view exposes a thin gameplay-controls footer, while touch layouts hide that footer.
 
-`npm run profile` profiles a production preview in visible Chromium for 180 active seconds. Its harness makes the player invulnerable only so the benchmark reaches its time limit; enemies, projectiles, collisions, effects, and rendering remain active. It records frame intervals, simulation and renderer time, entities, completion state, environment, forced-GC heap readings, and five cleanup cycles. `npm run profile -- --headless` is diagnostic only. The acceptance target is at least 58 FPS and p95 frame interval of 20 ms or lower on the documented reference desktop. GPU, heap, or other browser metrics may be unavailable; reports write `null` rather than invent values.
+`?e2e=1` in development stops the ticker and provides a seeded test bridge that advances the real fixed-step simulation. Playwright uses keyboard and pointer events, covers gameplay and recovery flows on desktop and mobile Chromium, asserts no scrolling at 320×568, 667×375, 851×393, and 956×440, and versions visual baselines for menu, Options, arena, red ship bars, impact, and result.
 
-Browser storage can be unavailable. In that case local options or matches report failure and cannot survive refresh. Audio is outside the current gameplay scope. Vercel configuration is included, but a public deployment requires an authorized account and is not created by this repository.
+`npm run profile` profiles a production preview in visible Chromium for 180 active seconds. Its harness makes the player invulnerable only so the benchmark reaches its time limit; enemies, projectiles, collisions, effects, and rendering remain active. It records frame intervals, simulation and renderer time, entities, completion state, environment, forced-GC heap readings, and five cleanup cycles. `npm run profile -- --headless` is diagnostic only: the checked-in headless report does not prove the reference performance target. The acceptance target is at least 58 FPS and p95 frame interval of 20 ms or lower on the documented reference desktop, and it is considered validated only by an eligible visible Chromium profile. GPU, heap, or other browser metrics may be unavailable; reports write `null` rather than invent values.
+
+Browser storage can be unavailable. In that case local options or matches report failure and cannot survive refresh. Audio is outside the current gameplay scope. The published Vercel deployment is [https://pirate-game-alfredo.vercel.app/](https://pirate-game-alfredo.vercel.app/); its build uses `npm run build`, outputs `dist`, and is configured by `vercel.json`. The deployed build should be validated for direct navigation, refresh, canvas/assets, the MSW service worker, Ranking, Match History, and completed-match registration.

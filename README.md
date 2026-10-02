@@ -6,6 +6,8 @@ A browser-based single-player naval shooter built with React, TypeScript, and Pi
 
 Requirements: Node.js 20.19+, npm 10+, WebGL, and local storage. No environment variables or private services are required.
 
+The initial implementation estimate for this challenge was **3 business days**.
+
 ```bash
 npm ci
 npx playwright install chromium
@@ -75,12 +77,14 @@ Select a scenario in the main menu, open the affected record screen or finish a 
 
 ## Tests, profiling, and deploy preparation
 
-Development builds opened with `?e2e=1` expose `window.__pirateBattleTest` only after assets load. Playwright advances the seeded fixed-step simulation, uses actual keyboard and pointer handlers, and observes snapshots. Each context uses isolated browser storage. Layout tests assert no document scrolling and reachable buttons at 320×568, 667×375, and 851×393.
+The responsive layout is verified at 320×568, 667×375, 851×393, and 956×440. Short landscape viewports use the compact menu layout; the desktop battle view includes a thin keyboard-controls footer while touch layouts keep it hidden.
+
+Development builds opened with `?e2e=1` expose `window.__pirateBattleTest` only after assets load. Playwright advances the seeded fixed-step simulation, uses actual keyboard and pointer handlers, and observes snapshots. Each context uses isolated browser storage. Layout tests assert no document scrolling and reachable buttons at 320×568, 667×375, 851×393, and 956×440.
 
 Run `npm run profile` on the documented reference desktop. It opens Chromium visibly, runs an optimized preview for 180 active seconds, and writes [profiling report](reports/profiling.json). The profiling harness makes only the player invulnerable so a full-duration stress capture is possible; spawning, navigation, shots, effects, collision, and rendering remain active. The report contains FPS, mean and p95 frame interval, maximum entities, mean simulation and Pixi synchronization time, active duration, end reason, CPU, GPU when Chromium exposes it, browser, viewport, DPR, heap after forced garbage collection, and resource state after five start/leave cycles.
 
 A valid reference profile ends by time after 180 active seconds. The target is at least 58 FPS and p95 frame interval no greater than 20 ms. A failed target is recorded as an observed limitation, never reported as a 60 FPS result. Headless captures are diagnostic only.
 
-Vercel is configured through [vercel.json](vercel.json) to build with `npm run build` and serve `dist`. After linking an authorized account, deploy and validate refresh, canvas/assets, the MSW service worker, Ranking, Match History, and completed-match registration. A public URL is intentionally outside this local implementation step.
+The public deployment is available at [https://pirate-game-alfredo.vercel.app/](https://pirate-game-alfredo.vercel.app/). Vercel uses [vercel.json](vercel.json) to run `npm run build` and serve `dist`. The published build should be smoke-tested by opening the URL directly and refreshing it, then checking canvas/assets, the MSW service worker, Ranking, Match History, and completed-match registration.
 
-The supplied visual and audio assets are under `assets/`. No license or attribution metadata was supplied. The challenge brief is in [CHALLENGE.md](CHALLENGE.md), architectural decisions are in [ARCHITECTURE.md](ARCHITECTURE.md), and verification evidence is in [reports/README.md](reports/README.md).
+The supplied visual and audio assets are under `assets/`. Audio is outside the scope of this delivery; no audio playback is implemented. No license or attribution metadata was supplied. The challenge brief is in [CHALLENGE.md](CHALLENGE.md), architectural decisions are in [ARCHITECTURE.md](ARCHITECTURE.md), and verification evidence is in [reports/README.md](reports/README.md).
