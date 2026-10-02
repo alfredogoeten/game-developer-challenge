@@ -646,7 +646,7 @@ select:focus-visible {
 
 .menu-footer-actions { margin-top: var(--space-5); }
 .pending-notice .asset-button { width: auto; min-height: 2rem; padding: var(--space-2) var(--space-3); font-size: .75rem; }
-.network-scenarios .asset-button { width: min(100%, 16rem); justify-self: start; }
+.network-scenarios .asset-button { width: min(100%, 16rem); justify-self: center; }
 
 .options-panel,
 .result-panel { max-width: 48rem; }

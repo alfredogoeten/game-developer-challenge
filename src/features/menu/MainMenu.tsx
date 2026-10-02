@@ -138,9 +138,6 @@ export function MainMenu({
         >
           Reset mock data
         </button>
-        <p>
-          Resets the scenario and confirmed mock records. Your saved options and local results stay on this device.
-        </p>
       </section>
       <p aria-live="polite" className="screen-reader-status" role="status">
         {statusMessage}
