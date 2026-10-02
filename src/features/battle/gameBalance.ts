@@ -1,5 +1,8 @@
 import type { GameOptions } from "../options/gameOptions";
 
+export const ISLAND_LAND_HALF_SIZE = 128;
+export const ISLAND_LAND_CORNER_RADIUS = 26;
+
 export type IslandLobe = { x: number; y: number; radius: number };
 export type IslandShape = {
   x: number;

@@ -1,4 +1,10 @@
-import { COMBAT_FEEDBACK, type GameBalance } from "./gameBalance";
+import {
+  COMBAT_FEEDBACK,
+  ISLAND_LAND_CORNER_RADIUS,
+  ISLAND_LAND_HALF_SIZE,
+  type GameBalance,
+  type IslandShape,
+} from "./gameBalance";
 
 import type {
   Action,
@@ -22,6 +28,7 @@ const SIMULATION_TUNING = {
   stuckThreshold: 0.45,
   boundaryEscapeDuration: 0.9,
   spawnIslandClearance: 10,
+  shoreClearance: 6,
   collisionCorrectionPasses: 3,
   islandRoutePadding: 18,
   islandAvoidancePadding: 28,
@@ -51,7 +58,6 @@ export class GameSimulation {
   private starboardCooldown = 0;
   private nextId = 1;
   private randomState: number;
-  private readonly islandLobes: { x: number; y: number; radius: number }[];
   private readonly islandNavigation: { x: number; y: number; radius: number }[];
 
   constructor(balance: GameBalance, seed = 2026) {
@@ -66,19 +72,12 @@ export class GameSimulation {
       radius: balance.player.radius,
       hitFeedback: 0,
     };
-    this.islandLobes = balance.islands.flatMap((island) =>
-      island.lobes.map((lobe) => ({
-        x: island.x + lobe.x,
-        y: island.y + lobe.y,
-        radius: lobe.radius,
-      })),
-    );
+    const cornerCenter = ISLAND_LAND_HALF_SIZE - ISLAND_LAND_CORNER_RADIUS;
     this.islandNavigation = balance.islands.map((island) => ({
       x: island.x,
       y: island.y,
-      radius: Math.max(
-        ...island.lobes.map((lobe) => Math.hypot(lobe.x, lobe.y) + lobe.radius),
-      ),
+      radius:
+        Math.hypot(cornerCenter, cornerCenter) + ISLAND_LAND_CORNER_RADIUS,
     }));
     this.spawnCooldown = balance.spawn.interval;
     this.randomState = seed >>> 0 || 1;
@@ -411,11 +410,11 @@ export class GameSimulation {
       (point) =>
         Math.hypot(point.x - this.player.x, point.y - this.player.y) >=
           this.balance.spawn.minimumPlayerDistance &&
-        this.islandLobes.every(
-          (lobe) =>
-            Math.hypot(point.x - lobe.x, point.y - lobe.y) >=
-            lobe.radius +
-              this.balance.chaser.radius +
+        this.balance.islands.every(
+          (island) =>
+            islandDistance(point.x, point.y, island) >=
+            this.balance.chaser.radius +
+              SIMULATION_TUNING.shoreClearance +
               SIMULATION_TUNING.spawnIslandClearance,
         ),
     );
@@ -452,15 +451,16 @@ export class GameSimulation {
       pass += 1
     ) {
       let corrected = false;
-      for (const lobe of this.islandLobes) {
-        const vx = ship.x - lobe.x;
-        const vy = ship.y - lobe.y;
-        const distance = Math.hypot(vx, vy);
-        const limit = lobe.radius + ship.radius;
-        if (distance >= limit) continue;
-        const scale = limit / (distance || 1);
-        ship.x = lobe.x + (distance ? vx * scale : limit);
-        ship.y = lobe.y + vy * scale;
+      for (const island of this.balance.islands) {
+        const collision = islandCollision(
+          ship.x,
+          ship.y,
+          ship.radius + SIMULATION_TUNING.shoreClearance,
+          island,
+        );
+        if (!collision) continue;
+        ship.x += collision.x;
+        ship.y += collision.y;
         corrected = true;
       }
       if (!corrected) break;
@@ -595,8 +595,8 @@ export class GameSimulation {
     y2: number,
     padding: number,
   ) {
-    return this.islandLobes.some((lobe) =>
-      segmentHitsCircle(x1, y1, x2, y2, lobe.x, lobe.y, lobe.radius + padding),
+    return this.balance.islands.some((island) =>
+      segmentHitsIsland(x1, y1, x2, y2, island, padding),
     );
   }
 
@@ -639,6 +639,115 @@ function turnToward(current: number, target: number, maxStep: number) {
     current + Math.max(-maxStep, Math.min(maxStep, difference)),
   );
 }
+function islandDistance(x: number, y: number, island: IslandShape) {
+  const core = ISLAND_LAND_HALF_SIZE - ISLAND_LAND_CORNER_RADIUS;
+  const qx = Math.abs(x - island.x) - core;
+  const qy = Math.abs(y - island.y) - core;
+  return (
+    Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) +
+    Math.min(Math.max(qx, qy), 0) -
+    ISLAND_LAND_CORNER_RADIUS
+  );
+}
+
+function islandCollision(
+  x: number,
+  y: number,
+  radius: number,
+  island: IslandShape,
+) {
+  const distance = islandDistance(x, y, island);
+  if (distance >= radius) return null;
+
+  const core = ISLAND_LAND_HALF_SIZE - ISLAND_LAND_CORNER_RADIUS;
+  const dx = x - island.x;
+  const dy = y - island.y;
+  const qx = Math.abs(dx) - core;
+  const qy = Math.abs(dy) - core;
+  const outerX = Math.max(qx, 0);
+  const outerY = Math.max(qy, 0);
+  const outerLength = Math.hypot(outerX, outerY);
+  const penetration = radius - distance;
+
+  if (outerLength > 0) {
+    return {
+      x: Math.sign(dx) * (outerX / outerLength) * penetration,
+      y: Math.sign(dy) * (outerY / outerLength) * penetration,
+    };
+  }
+  return qx > qy
+    ? { x: (dx < 0 ? -1 : 1) * penetration, y: 0 }
+    : { x: 0, y: (dy < 0 ? -1 : 1) * penetration };
+}
+
+function segmentHitsIsland(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  island: IslandShape,
+  padding: number,
+) {
+  const core = ISLAND_LAND_HALF_SIZE - ISLAND_LAND_CORNER_RADIUS;
+  const extent = ISLAND_LAND_HALF_SIZE + padding;
+  const localX1 = x1 - island.x;
+  const localY1 = y1 - island.y;
+  const localX2 = x2 - island.x;
+  const localY2 = y2 - island.y;
+  if (
+    segmentHitsRectangle(localX1, localY1, localX2, localY2, -core, -extent, core, extent) ||
+    segmentHitsRectangle(localX1, localY1, localX2, localY2, -extent, -core, extent, core)
+  ) return true;
+
+  for (const cornerX of [-core, core]) {
+    for (const cornerY of [-core, core]) {
+      if (
+        segmentHitsCircle(
+          localX1,
+          localY1,
+          localX2,
+          localY2,
+          cornerX,
+          cornerY,
+          ISLAND_LAND_CORNER_RADIUS + padding,
+        )
+      ) return true;
+    }
+  }
+  return false;
+}
+
+function segmentHitsRectangle(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+) {
+  let entry = 0;
+  let exit = 1;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  for (const [start, delta, min, max] of [
+    [x1, dx, left, right],
+    [y1, dy, top, bottom],
+  ]) {
+    if (delta === 0) {
+      if (start < min || start > max) return false;
+      continue;
+    }
+    const first = (min - start) / delta;
+    const second = (max - start) / delta;
+    entry = Math.max(entry, Math.min(first, second));
+    exit = Math.min(exit, Math.max(first, second));
+    if (entry > exit) return false;
+  }
+  return true;
+}
+
 function segmentHitsCircle(
   x1: number,
   y1: number,

@@ -176,23 +176,25 @@ export function RecordsScreen({
         {data ? (
           <nav aria-label={`${title} pages`} className="records-pagination">
             <button
-              className="hud-button"
+              aria-label="Previous page"
+              className="hud-button records-pagination__button records-pagination__button--previous"
               disabled={page <= 1 || query.isFetching}
               onClick={() => setPage(page - 1)}
               type="button"
             >
-              Previous
+              <span aria-hidden="true" className="records-pagination__icon" />
             </button>
             <span>
               Page {data.page} of {data.totalPages}
             </span>
             <button
-              className="hud-button"
+              aria-label="Next page"
+              className="hud-button records-pagination__button"
               disabled={page >= data.totalPages || query.isFetching}
               onClick={() => setPage(page + 1)}
               type="button"
             >
-              Next
+              <span aria-hidden="true" className="records-pagination__icon" />
             </button>
           </nav>
         ) : null}

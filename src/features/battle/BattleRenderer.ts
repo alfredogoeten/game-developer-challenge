@@ -7,7 +7,11 @@ import {
   TilingSprite,
   Texture,
 } from "pixi.js";
-import { COMBAT_FEEDBACK, type GameBalance } from "./gameBalance";
+import {
+  COMBAT_FEEDBACK,
+  ISLAND_LAND_HALF_SIZE,
+  type GameBalance,
+} from "./gameBalance";
 import type { Effect, Enemy, GameSnapshot, Ship } from "./model";
 import type { BattleTextures } from "./assets";
 
@@ -106,7 +110,7 @@ export class BattleRenderer {
     };
     for (const [index, shape] of balance.islands.entries()) {
       const island = new Container();
-      island.pivot.set(TILE_SIZE * 2, TILE_SIZE * 2);
+      island.pivot.set(ISLAND_LAND_HALF_SIZE, ISLAND_LAND_HALF_SIZE);
       island.position.set(shape.x, shape.y);
       island.rotation = index === 0 ? 0 : Math.PI;
       for (const contour of SHALLOW_WATER_CONTOURS) {
