@@ -495,7 +495,7 @@ export function BattleScreen({ options, onFinish, onExit, onOpenOptions }: Battl
         ))}
       </div>
       <p className="battle-help">
-        W/↑ forward · A/D or ←/→ turn · Space front cannon · Q/E broadsides ·
+        W forward · A/D turn · Space front cannon · Q/E broadsides ·
         Esc pause
       </p>
       <p className="sr-only" aria-live="off">

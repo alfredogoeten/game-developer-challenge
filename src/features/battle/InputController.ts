@@ -1,12 +1,9 @@
 import type { Action } from "./model";
 
 const bindings: Record<string, Action> = {
-  KeyW: "forward",
-  ArrowUp: "forward",
-  KeyA: "turnLeft",
-  ArrowLeft: "turnLeft",
+  KeyW: "forward", 
+  KeyA: "turnLeft", 
   KeyD: "turnRight",
-  ArrowRight: "turnRight",
   Space: "front",
   KeyQ: "port",
   KeyE: "starboard",

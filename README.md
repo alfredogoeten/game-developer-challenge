@@ -34,8 +34,8 @@ From a clean checkout, run `npm ci`, `npx playwright install chromium`, `npm run
 
 | Action | Keyboard | Touch in landscape |
 | --- | --- | --- |
-| Move forward | `W` or Up Arrow | Up button |
-| Turn left / right | `A` / `D` or Left / Right Arrow | Left / right buttons |
+| Move forward | `W` | Up button |
+| Turn left / right | `A` / `D` | Left / right buttons |
 | Fire front cannon | `Space` | Center fire button |
 | Fire left / right broadside | `Q` / `E` | Left / right fire buttons |
 | Pause or resume | `Esc` | Pause / Resume button |

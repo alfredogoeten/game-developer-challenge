@@ -2,8 +2,8 @@ import { SCENARIOS, type Scenario } from "../../mocks/scenarios";
 import type { RefObject } from "react";
 
 const CONTROL_HINTS = [
-  ["Move forward", "W or ↑"],
-  ["Turn", "A / D or ← / →"],
+  ["Move forward", "W"],
+  ["Turn", "A / D"],
   ["Front cannon", "Space"],
   ["Broadside cannons", "Q / E"],
   ["Pause", "Esc"],
