@@ -3,11 +3,9 @@ import type { GameOptions } from "../options/gameOptions";
 export const ISLAND_LAND_HALF_SIZE = 128;
 export const ISLAND_LAND_CORNER_RADIUS = 26;
 
-export type IslandLobe = { x: number; y: number; radius: number };
 export type IslandShape = {
   x: number;
   y: number;
-  lobes: readonly IslandLobe[];
 };
 
 export type GameBalance = Readonly<{
@@ -37,6 +35,7 @@ export type GameBalance = Readonly<{
     preferredRange: number;
     fireCooldown: number;
     projectileSpeed: number;
+    projectileDamage: number;
   };
   projectile: {
     radius: number;
@@ -47,6 +46,7 @@ export type GameBalance = Readonly<{
   weapons: { frontCooldown: number; broadsideCooldown: number };
   spawn: {
     interval: number;
+    maxConcurrent: number;
     minimumPlayerDistance: number;
     points: readonly { x: number; y: number }[];
   };
@@ -56,29 +56,13 @@ export type GameBalance = Readonly<{
 export const BATTLE_BALANCE = {
   arena: { width: 960, height: 540 },
   islands: [
-    {
-      x: 390,
-      y: 225,
-      lobes: [
-        { x: -35, y: 18, radius: 48 },
-        { x: 15, y: -28, radius: 44 },
-        { x: 48, y: 20, radius: 35 },
-      ],
-    },
-    {
-      x: 735,
-      y: 360,
-      lobes: [
-        { x: -40, y: -22, radius: 40 },
-        { x: 12, y: 17, radius: 48 },
-        { x: 48, y: -23, radius: 33 },
-      ],
-    },
+    { x: 390, y: 225 },
+    { x: 735, y: 360 },
   ],
   player: {
     x: 188,
     y: 270,
-    health: 5,
+    health: 100,
     radius: 22,
     speed: 150,
     turnSpeed: Math.PI,
@@ -88,7 +72,7 @@ export const BATTLE_BALANCE = {
     radius: 21,
     speed: 86,
     turnSpeed: 2.6,
-    impactDamage: 1,
+    impactDamage: 25,
   },
   shooter: {
     health: 1,
@@ -98,11 +82,13 @@ export const BATTLE_BALANCE = {
     attackRange: 310,
     preferredRange: 220,
     fireCooldown: 1.5,
+    projectileDamage: 12,
     projectileSpeedMultiplier: 0.75,
   },
   projectile: { radius: 5, speed: 330, lifetime: 1.6, damage: 1 },
   weapons: { frontCooldown: 0.42, broadsideCooldown: 1.2 },
   spawn: {
+    maxConcurrent: 6,
     minimumPlayerDistance: 250,
     points: [
       { x: 70, y: 70 },
@@ -141,6 +127,7 @@ export function createGameBalance(options: GameOptions): GameBalance {
     weapons: { ...BATTLE_BALANCE.weapons },
     spawn: {
       interval: options.enemySpawnIntervalSeconds,
+      maxConcurrent: BATTLE_BALANCE.spawn.maxConcurrent,
       minimumPlayerDistance: BATTLE_BALANCE.spawn.minimumPlayerDistance,
       points: BATTLE_BALANCE.spawn.points,
     },

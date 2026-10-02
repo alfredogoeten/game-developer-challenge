@@ -3,6 +3,7 @@ import {
   BATTLE_BALANCE,
   createGameBalance,
 } from "../src/features/battle/gameBalance";
+import { GameSimulation, islandDistance } from "../src/features/battle/GameSimulation";
 import type { BattleTestBridge } from "../src/features/battle/testBridge";
 
 type Snapshot = ReturnType<BattleTestBridge["snapshot"]>;
@@ -56,6 +57,20 @@ test("loads assets and retries after a failed texture", async ({ page }) => {
   await expect(page.locator(".battle-stage canvas")).toBeVisible();
 });
 
+test("starts with 100 HP and centered score and time panels", async ({ page }) => {
+  await start(page);
+  await expect(page.getByTestId("health")).toHaveText("100");
+  await expect(page.locator(".hud-health")).toHaveAttribute("aria-label", "Health: 100 of 100");
+  const positions = await page.evaluate(() => {
+    const hud = document.querySelector(".battle-hud")!.getBoundingClientRect();
+    const health = document.querySelector(".hud-health")!.getBoundingClientRect();
+    const actions = document.querySelector(".hud-actions")!.getBoundingClientRect();
+    return { hud, health, actions };
+  });
+  expect(positions.health.left).toBeCloseTo(positions.hud.left, 0);
+  expect(positions.actions.right).toBeCloseTo(positions.hud.right, 0);
+});
+
 test("moves, rotates and stops at arena and island boundaries", async ({
   page,
 }) => {
@@ -69,16 +84,8 @@ test("moves, rotates and stops at arena and island boundaries", async ({
   for (let index = 0; index < 15; index += 1) {
     await step(page, 10);
     const player = (await snapshot(page)).player;
-    for (const island of islands) {
-      for (const lobe of island.lobes) {
-        expect(
-          Math.hypot(
-            player.x - island.x - lobe.x,
-            player.y - island.y - lobe.y,
-          ),
-        ).toBeGreaterThanOrEqual(lobe.radius + 22 - 0.1);
-      }
-    }
+    for (const island of islands)
+      expect(islandDistance(player.x, player.y, island)).toBeGreaterThanOrEqual(28 - 0.1);
   }
   await page.keyboard.up("w");
   const stopped = await snapshot(page);
@@ -88,7 +95,8 @@ test("moves, rotates and stops at arena and island boundaries", async ({
   await step(page, 30);
   await page.keyboard.up("a");
   expect((await snapshot(page)).player.angle).not.toBe(initial.player.angle);
-  await page.getByRole("button", { name: "Main Menu" }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("dialog", { name: "Game paused" }).getByRole("button", { name: "Main Menu" }).click();
   await page.getByRole("button", { name: "Leave Game" }).click();
   await start(page);
   await page.keyboard.down("a");
@@ -201,12 +209,12 @@ test("the western island blocks a direct shot and provides cover", async ({
       .getByRole("button", { name: "Increase Enemy spawn time" })
       .click();
   }
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "MAIN MENU" }).click();
   await start(page);
   await spawn(page, "shooter", 495, 270);
   await step(page, 90);
   const covered = await snapshot(page);
-  expect(covered.player.health).toBe(5);
+  expect(covered.player.health).toBe(100);
   expect(
     covered.projectiles.filter((projectile) => projectile.owner === "enemy"),
   ).toHaveLength(0);
@@ -222,7 +230,7 @@ test("the western island blocks a direct shot and provides cover", async ({
   await step(page, 300);
   const flanked = await snapshot(page);
   expect(
-    flanked.player.health < 5 ||
+    flanked.player.health < 100 ||
       flanked.projectiles.some((projectile) => projectile.owner === "enemy"),
   ).toBe(true);
 });
@@ -254,11 +262,11 @@ test("a Chaser can navigate around the cover island", async ({ page }) => {
       .getByRole("button", { name: "Increase Enemy spawn time" })
       .click();
   }
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "MAIN MENU" }).click();
   await start(page);
   await spawn(page, "chaser", 520, 230);
   await step(page, 540);
-  expect((await snapshot(page)).player.health).toBe(4);
+  expect((await snapshot(page)).player.health).toBe(75);
 });
 
 for (const scenario of [
@@ -275,14 +283,14 @@ for (const scenario of [
         .getByRole("button", { name: "Increase Enemy spawn time" })
         .click();
     }
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "MAIN MENU" }).click();
     await start(page);
     await spawn(page, scenario.kind, scenario.x, scenario.y);
     await step(page, 480);
     const state = await snapshot(page);
     const enemy = state.enemies.find((item) => item.kind === scenario.kind);
     if (scenario.kind === "chaser" && !enemy) {
-      expect(state.player.health).toBeLessThan(5);
+      expect(state.player.health).toBeLessThan(100);
     } else {
       expect(enemy).toBeDefined();
       expect(
@@ -319,6 +327,22 @@ test("spawns both enemy types, pauses without time advancement and resumes clean
   await page.keyboard.up("w");
 });
 
+test("six living enemies freeze and then resume the remaining spawn interval", () => {
+  const simulation = new GameSimulation(createGameBalance({ sessionDurationSeconds: 60, enemySpawnIntervalSeconds: 3 }));
+  simulation.setProfileInvulnerable(true);
+  for (let index = 0; index < 150; index += 1) simulation.step(1 / 60, new Set());
+  for (let index = 0; index < 6; index += 1) simulation.debugSpawn("shooter", 800 + index * 12, 70 + index * 40);
+  for (let index = 0; index < 600; index += 1) simulation.step(1 / 60, new Set());
+  expect(simulation.enemies).toHaveLength(6);
+  expect(simulation.spawnCount).toBe(0);
+  simulation.enemies.pop();
+  for (let index = 0; index < 29; index += 1) simulation.step(1 / 60, new Set());
+  expect(simulation.spawnCount).toBe(0);
+  for (let index = 0; index < 2; index += 1) simulation.step(1 / 60, new Set());
+  expect(simulation.enemies).toHaveLength(6);
+  expect(simulation.spawnCount).toBe(1);
+});
+
 test("Shooter fires in range and Chaser impact causes death without points", async ({
   page,
 }) => {
@@ -334,8 +358,8 @@ test("Shooter fires in range and Chaser impact causes death without points", asy
       BATTLE_BALANCE.shooter.projectileSpeedMultiplier,
   );
   await step(page, 19);
-  expect((await snapshot(page)).player.health).toBe(4);
-  for (let remaining = 3; remaining >= 0; remaining -= 1) {
+  expect((await snapshot(page)).player.health).toBe(88);
+  for (let remaining = 63; remaining >= -12; remaining -= 25) {
     await spawn(page, "chaser", 210, 270);
     await step(page, 1);
     if (remaining > 0) {
@@ -345,7 +369,7 @@ test("Shooter fires in range and Chaser impact causes death without points", asy
     }
   }
   await expect(
-    page.getByRole("heading", { name: "Battle Result" }),
+    page.getByRole("heading", { name: "Battle Complete" }),
   ).toBeVisible();
   await expect(page.getByText("Ship destroyed")).toBeVisible();
   await expect(page.getByText("0 points")).toBeVisible();
@@ -358,7 +382,7 @@ test("finishes by time, records one match and starts a clean new game", async ({
   await page.evaluate(() => window.__pirateBattleTest!.setElapsed(119.99));
   await step(page, 1);
   await expect(
-    page.getByRole("heading", { name: "Battle Result" }),
+    page.getByRole("heading", { name: "Battle Complete" }),
   ).toBeVisible();
   await expect(page.getByText("Time expired")).toBeVisible();
   await expect(page.getByText("Recorded", { exact: true })).toBeVisible();
@@ -370,7 +394,7 @@ test("finishes by time, records one match and starts a clean new game", async ({
   await expect(page.locator(".battle-stage canvas")).toBeVisible();
   const restarted = await snapshot(page);
   expect(restarted.score).toBe(0);
-  expect(restarted.player.health).toBe(5);
+  expect(restarted.player.health).toBe(100);
   expect(restarted.elapsed).toBe(0);
   await page.getByRole("button", { name: "Main Menu" }).click();
   await page.getByRole("button", { name: "Leave Game" }).click();
@@ -527,4 +551,16 @@ test("touch controls can move and fire together in mobile landscape", async ({
     pointerId: 2,
     pointerType: "touch",
   });
+});
+
+test("shows keyboard controls in the desktop battle footer only", async ({
+  page,
+}, testInfo) => {
+  await start(page);
+  const footer = page.getByText(/W\/.*forward/);
+  if (testInfo.project.name === "mobile-chromium") {
+    await expect(footer).toBeHidden();
+  } else {
+    await expect(footer).toBeVisible();
+  }
 });

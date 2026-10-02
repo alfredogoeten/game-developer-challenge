@@ -645,7 +645,8 @@ select:focus-visible {
 }
 
 .menu-footer-actions { margin-top: var(--space-5); }
-.pending-notice .hud-button { min-height: 2rem; font-size: .75rem; }
+.pending-notice .asset-button { width: auto; min-height: 2rem; padding: var(--space-2) var(--space-3); font-size: .75rem; }
+.network-scenarios .asset-button { width: min(100%, 16rem); justify-self: start; }
 
 .options-panel,
 .result-panel { max-width: 48rem; }
@@ -668,10 +669,11 @@ select:focus-visible {
   background-image: var(--asset-round-button);
   box-shadow: none;
 }
-.round-button--minus { background-image: var(--asset-round-button), var(--asset-icon-minus); }
-.round-button--plus { background-image: var(--asset-round-button), var(--asset-icon-plus); }
-.round-button--minus,
-.round-button--plus { background-position: center, center; background-size: contain, 66%; }
+.round-button { display: grid; place-items: center; }
+.round-button__icon { display: block; width: 70%; height: 70%; background: center / contain no-repeat; }
+.round-button--minus .round-button__icon { background-image: var(--asset-icon-minus); }
+.round-button--plus .round-button__icon { background-image: var(--asset-icon-plus); }
+.options-fields { display: grid; gap: var(--space-5); max-width: 32rem; margin: var(--space-5) auto 0; }
 
 .records-screen { max-width: min(100%, 88rem); }
 .records-screen h1 { font-size: 0; }
@@ -719,7 +721,6 @@ select:focus-visible {
 
 .result-panel { text-align: center; }
 .result-panel h1 { font-size: 0; }
-.result-panel h1::after { content: "BATTLE COMPLETE"; font-size: var(--font-size-section); }
 .result-score { margin: var(--space-2) 0; color: var(--color-gold-light); }
 .result-details { display: none; }
 .result-note { margin: 0 auto var(--space-4); text-transform: uppercase; font-weight: var(--font-weight-bold); }
@@ -749,14 +750,15 @@ select:focus-visible {
 .hud-health__bar--amber .hud-health__fill { background-image: var(--asset-health-amber); }
 .hud-health__bar--red .hud-health__fill { background-image: var(--asset-health-red); }
 .hud-health__value { position: absolute; left: 6.75rem; z-index: 2; color: var(--color-ivory); font-size: .95rem; font-weight: var(--font-weight-bold); text-shadow: 0 1px 2px #000; }
-.hud-counters { display: flex; gap: .75rem; margin-left: auto; }
+.hud-actions { display: flex; align-items: center; gap: .75rem; margin-left: auto; }
+.hud-counters { display: flex; gap: .75rem; }
 .hud-counter {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   width: 8rem;
   height: 2.8rem;
-  padding-right: 1rem;
+  padding: 0 .45rem;
   color: var(--color-ivory);
   background: var(--asset-counter-panel) center / 100% 100% no-repeat;
   font-size: 1.1rem;
@@ -786,9 +788,20 @@ select:focus-visible {
   background-size: 72%;
 }
 .hud-round-button__icon--pause { background-image: var(--asset-icon-pause); }
-.hud-round-button__icon--home { background-image: var(--asset-icon-home); }
 .hud-round-button:hover { filter: brightness(1.12); }
-.battle-help { display: none; }
+.battle-help {
+  display: none;
+  flex: none;
+  margin: 0;
+  padding: .4rem .75rem;
+  border-top: 1px solid rgb(104 153 177 / 32%);
+  color: var(--color-ivory-muted);
+  font-size: .75rem;
+  text-align: center;
+}
+@media (hover: hover) and (pointer: fine) {
+  .battle-help { display: block; }
+}
 .battle-overlay { z-index: 4; background: rgb(6 26 39 / 52%); }
 .game-modal-panel {
   display: grid;
@@ -808,7 +821,7 @@ select:focus-visible {
 .game-modal-panel .dialog-actions { width: min(100%, 20rem); }
 
 .touch-control { background: var(--asset-round-button) center / contain no-repeat; border: 0; }
-.touch-control__icon { display: block; width: 100%; height: 100%; background: center / 70% no-repeat; }
+.touch-control__icon { position: relative; z-index: 1; display: block; width: 100%; height: 100%; background: center / 84% no-repeat; filter: brightness(1.3) drop-shadow(0 1px 2px #071820); }
 .touch-control__icon--turn-left { background-image: var(--asset-icon-back); }
 .touch-control__icon--forward { background-image: var(--asset-icon-forward); }
 .touch-control__icon--turn-right { background-image: var(--asset-icon-turn-right); }
@@ -938,4 +951,91 @@ select:focus-visible {
     border-radius: 0;
     background: var(--asset-round-button) center / contain no-repeat;
   }
+}
+
+@media (max-height: 600px), (max-width: 600px) {
+  :root { --page-padding: .35rem; --button-min-height: 2.4rem; --round-control-size: 2.5rem; }
+  body, .app-shell { min-height: 100dvh; }
+  .app-shell { padding: var(--page-padding); }
+  .app-shell:has(.battle-screen) { height: 100dvh; padding: 0; }
+  .battle-screen { width: 100vw; height: 100dvh; min-height: 0; }
+  .battle-stage { aspect-ratio: auto; }
+  .menu-panel {
+    width: min(100%, 52rem);
+    min-height: 0;
+    padding: .8rem 1rem;
+    border-width: .55rem;
+    border-image-width: .55rem;
+  }
+  .menu-panel h1 { font-size: 1.45rem; }
+  .asset-button { min-height: 2.4rem; padding: .3rem .8rem; font-size: .86rem; }
+  .asset-button--secondary { font-size: .76rem; }
+  .game-title { width: min(100%, 13rem); margin: -.4rem auto -.2rem; }
+  .menu-actions { gap: .1rem; margin: .2rem auto; }
+  .menu-actions .asset-button { width: min(100%, 14rem); }
+  .controls-guide { display: none; }
+  .menu-footer-actions { gap: .2rem; margin-top: .1rem; }
+  .menu-footer-actions .asset-button { width: 60%; }
+  .network-scenarios { gap: .15rem; margin-top: .4rem; padding: .35rem .5rem; }
+  .network-scenarios h2 { font-size: .72rem; }
+  .network-scenarios label, .network-scenarios p { display: none; }
+  .network-scenarios select { min-height: 2rem; padding: .2rem .4rem; font-size: .8rem; }
+  .network-scenarios .asset-button { min-height: 1.85rem; padding: .2rem; font-size: .75rem; }
+  .pending-notice { margin-top: .2rem; font-size: .72rem; }
+  .options-fields { gap: .8rem; margin: .8rem auto 0; }
+  .option-field { gap: .3rem; }
+  .option-value { font-size: 1.4rem; }
+  .form-actions { margin-top: .8rem; }
+  .options-panel .form-actions .asset-button { width: min(100%, 15rem); }
+  .records-screen .back-button { top: .45rem; left: .45rem; transform: scale(.75); transform-origin: top left; }
+  .records-screen h1::after { font-size: 1.35rem; }
+  .records-tabs { gap: .4rem; margin: .35rem 0; }
+  .records-tabs .asset-button { width: min(46%, 12rem); min-height: 2.3rem; padding: .2rem; font-size: .72rem; }
+  .records-screen .records-context { margin: .2rem 0 .35rem; font-size: .72rem; }
+  .records-panel, .records-content { min-height: 0; }
+  .records-list { gap: .25rem; }
+  .records-list li { min-height: 2.8rem; padding: .35rem .5rem; font-size: .75rem; }
+  .records-list small { font-size: .67rem; }
+  .records-pagination { margin-top: .4rem; }
+  .records-pagination__button { width: 2.2rem; min-height: 2.2rem; padding: .25rem; }
+  .result-panel h1 { font-size: 1.4rem; }
+  .result-score { margin: .2rem 0; font-size: 2rem; }
+  .result-details { gap: .1rem; }
+  .result-details div { padding: .2rem .4rem; font-size: .8rem; }
+  .result-note { margin: .3rem auto; font-size: .73rem; }
+  .result-actions { gap: .15rem; margin-top: .4rem; }
+  .result-actions .asset-button { width: min(100%, 15rem); }
+  .game-modal-panel { width: min(100%, 28rem); min-height: 0; gap: .35rem; padding: .7rem 1rem; border-width: .55rem; }
+  .game-modal-panel h2 { margin: 0; font-size: 1.3rem; }
+  .game-modal-panel p { font-size: .8rem; }
+  .game-modal-panel .dialog-actions { margin-top: .2rem; }
+}
+
+@media (min-width: 601px) and (max-height: 600px) {
+  .main-menu { display: grid; grid-template-columns: 1fr 1fr; column-gap: .7rem; align-items: center; max-height: calc(100dvh - .7rem); }
+  .main-menu h1, .main-menu .game-title { grid-column: 1 / -1; }
+  .main-menu .game-title { width: 10rem; height: 3rem; margin: -.45rem auto -.2rem; }
+  .main-menu .menu-actions { width: 100%; margin: 0; }
+  .main-menu .menu-footer-actions { display: grid; grid-template-columns: 1fr; width: 100%; margin: 0; }
+  .main-menu .network-scenarios { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 2fr 1fr; align-items: center; margin: .15rem 0 0; }
+  .main-menu .screen-reader-status { display: none; }
+  .options-panel, .result-panel { max-width: 38rem; }
+  .options-fields { grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .option-control { gap: .25rem; }
+  .records-screen { max-width: 42rem; }
+  .battle-hud { justify-content: space-between; }
+  .hud-health { min-width: 9rem; transform: scale(.72); transform-origin: left center; }
+  .hud-actions, .hud-counters { gap: .15rem; }
+  .hud-counter { width: 5.3rem; height: 2rem; font-size: .85rem; }
+  .hud-counter::before { width: 1rem; height: 1rem; margin-right: .2rem; }
+  .hud-round-button { width: 2.2rem; height: 2.2rem; }
+}
+
+@media (max-width: 600px) {
+  .menu-footer-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .main-menu { max-width: 25rem; }
+  .main-menu .game-title { height: 3.6rem; }
+  .main-menu .menu-actions .asset-button { min-height: 2.25rem; }
+  .main-menu .network-scenarios { margin-top: .25rem; }
+  .records-screen { max-width: 26rem; }
 }

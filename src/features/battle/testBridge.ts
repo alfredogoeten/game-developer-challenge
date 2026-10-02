@@ -13,6 +13,11 @@ export type BattleProfile = {
     meanFrameMs: number;
     p95FrameMs: number;
     maxEntities: number;
+    simulationMeanMs: number;
+    rendererMeanMs: number;
+    activeDurationSeconds: number;
+    endReason: "time" | "death" | null;
+    activeCanvasCount: number;
   };
 };
 
@@ -20,7 +25,13 @@ declare global {
   interface Window {
     __pirateBattleTest?: BattleTestBridge;
     __allowMatchSave?: () => void;
+    __allowOptionsSave?: () => void;
     __pirateBattleFailAssetAttempts?: number;
     __pirateBattleProfile?: BattleProfile;
+    __pirateBattleProfileStatus?: {
+      activeBattleInstances: number;
+      activeInputControllers: number;
+      activeTickers: number;
+    };
   }
 }

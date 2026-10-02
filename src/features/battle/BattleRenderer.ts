@@ -12,7 +12,7 @@ import {
   ISLAND_LAND_HALF_SIZE,
   type GameBalance,
 } from "./gameBalance";
-import type { Effect, Enemy, GameSnapshot, Ship } from "./model";
+import type { BattleRenderState, Effect, Enemy, Ship } from "./model";
 import type { BattleTextures } from "./assets";
 
 type ShipView = {
@@ -20,6 +20,8 @@ type ShipView = {
   sprite: Sprite;
   healthFill: Sprite;
 };
+
+type TrackedView<T> = { view: T; renderedAt: number };
 
 const ISLAND_TILES = [
   [6, 7, 8, 9],
@@ -79,12 +81,15 @@ function islandTile(sheet: Texture, number: number): Texture {
 export class BattleRenderer {
   private readonly app: Application;
   private readonly textures: BattleTextures;
-  private readonly ships = new Map<number, ShipView>();
-  private readonly bullets = new Map<number, Sprite>();
-  private readonly effects = new Map<number, Sprite>();
+  private readonly ships = new Map<number, TrackedView<ShipView>>();
+  private readonly bullets = new Map<number, TrackedView<Sprite>>();
+  private readonly effects = new Map<number, TrackedView<Sprite>>();
   private readonly shipLayer = new Container();
   private readonly bulletLayer = new Container();
   private readonly effectLayer = new Container();
+  private readonly islandTextures: Texture[] = [];
+  private renderNumber = 0;
+  private destroyed = false;
 
   constructor(
     app: Application,
@@ -105,6 +110,7 @@ export class BattleRenderer {
       if (!texture) {
         texture = islandTile(textures.islandTiles, number);
         tileCache.set(number, texture);
+        this.islandTextures.push(texture);
       }
       return texture;
     };
@@ -154,50 +160,42 @@ export class BattleRenderer {
     );
   }
 
-  render(snapshot: GameSnapshot) {
-    this.syncShip(snapshot.player, this.textures.player);
-    for (const enemy of snapshot.enemies)
+  render(state: BattleRenderState) {
+    if (this.destroyed) return;
+    this.renderNumber += 1;
+    this.syncShip(state.player, this.textures.player);
+    for (const enemy of state.enemies)
       this.syncShip(enemy, this.textures[enemy.kind]);
-    this.removeAbsent(
-      this.ships,
-      new Set([
-        snapshot.player.id,
-        ...snapshot.enemies.map((enemy) => enemy.id),
-      ]),
-    );
+    this.removeStale(this.ships);
 
-    for (const projectile of snapshot.projectiles) {
-      let sprite = this.bullets.get(projectile.id);
-      if (!sprite) {
-        sprite = new Sprite(this.textures.projectile);
-        sprite.anchor.set(0.5);
-        sprite.scale.set(1.15);
-        sprite.tint = projectile.owner === "player" ? 0xffdf8c : 0xff7777;
-        this.bulletLayer.addChild(sprite);
-        this.bullets.set(projectile.id, sprite);
+    for (const projectile of state.projectiles) {
+      let tracked = this.bullets.get(projectile.id);
+      if (!tracked) {
+        const view = new Sprite(this.textures.projectile);
+        view.anchor.set(0.5);
+        view.scale.set(1.15);
+        view.tint = projectile.owner === "player" ? 0xffdf8c : 0xff7777;
+        this.bulletLayer.addChild(view);
+        tracked = { view, renderedAt: this.renderNumber };
+        this.bullets.set(projectile.id, tracked);
       }
-      sprite.position.set(projectile.x, projectile.y);
+      tracked.renderedAt = this.renderNumber;
+      tracked.view.position.set(projectile.x, projectile.y);
     }
-    this.removeAbsent(
-      this.bullets,
-      new Set(snapshot.projectiles.map((item) => item.id)),
-    );
+    this.removeStale(this.bullets);
 
-    for (const effect of snapshot.effects) this.syncEffect(effect);
-    this.removeAbsent(
-      this.effects,
-      new Set(snapshot.effects.map((item) => item.id)),
-    );
+    for (const effect of state.effects) this.syncEffect(effect);
+    this.removeStale(this.effects);
   }
 
   private syncShip(ship: Ship | Enemy, texture: Texture) {
-    let view = this.ships.get(ship.id);
-    if (!view) {
+    let tracked = this.ships.get(ship.id);
+    if (!tracked) {
       const root = new Container();
       const sprite = new Sprite(texture);
       sprite.anchor.set(0.5);
       sprite.scale.set(ship.id === 0 ? 0.56 : 0.48);
-      const healthFill = new Sprite(this.textures.shipHealthGreen);
+      const healthFill = new Sprite(this.textures.shipHealthRed);
       healthFill.anchor.set(0, 0.5);
       healthFill.position.set(-22, -36);
       healthFill.height = 9;
@@ -206,11 +204,13 @@ export class BattleRenderer {
       healthFrame.position.set(0, -36);
       healthFrame.width = 52;
       healthFrame.height = 15;
-      root.addChild(sprite, healthFill, healthFrame);
+      root.addChild(sprite, healthFrame, healthFill);
       this.shipLayer.addChild(root);
-      view = { root, sprite, healthFill };
-      this.ships.set(ship.id, view);
+      tracked = { view: { root, sprite, healthFill }, renderedAt: this.renderNumber };
+      this.ships.set(ship.id, tracked);
     }
+    tracked.renderedAt = this.renderNumber;
+    const view = tracked.view;
     view.root.position.set(ship.x, ship.y);
     view.sprite.rotation = ship.angle - Math.PI / 2;
     const ratio = ship.health / ship.maxHealth;
@@ -227,27 +227,26 @@ export class BattleRenderer {
           : ratio > 0.25
             ? 0xffd49a
             : 0xff9292;
-    view.healthFill.texture =
-      ship.id === 0 && ratio > 0.25
-        ? this.textures.shipHealthGreen
-        : this.textures.shipHealthRed;
     view.healthFill.width = 44 * ratio;
   }
 
   private syncEffect(effect: Effect) {
-    let sprite = this.effects.get(effect.id);
-    if (!sprite) {
-      sprite = new Sprite(
+    let tracked = this.effects.get(effect.id);
+    if (!tracked) {
+      const view = new Sprite(
         effect.kind === "explosion"
           ? this.textures.explosion
           : effect.kind === "impact"
             ? this.textures.impact
             : this.textures.flash,
       );
-      sprite.anchor.set(0.5);
-      this.effectLayer.addChild(sprite);
-      this.effects.set(effect.id, sprite);
+      view.anchor.set(0.5);
+      this.effectLayer.addChild(view);
+      tracked = { view, renderedAt: this.renderNumber };
+      this.effects.set(effect.id, tracked);
     }
+    tracked.renderedAt = this.renderNumber;
+    const sprite = tracked.view;
     sprite.position.set(effect.x, effect.y);
     sprite.alpha = Math.max(0, 1 - effect.age / effect.duration);
     sprite.scale.set(
@@ -259,20 +258,44 @@ export class BattleRenderer {
     );
   }
 
-  private removeAbsent<T extends Container>(
-    items: Map<number, T | ShipView>,
-    present: Set<number>,
+  destroy() {
+    if (this.destroyed) return;
+    this.destroyed = true;
+    this.destroyViews(this.ships);
+    this.destroyViews(this.bullets);
+    this.destroyViews(this.effects);
+    for (const texture of this.islandTextures) texture.destroy(false);
+    this.islandTextures.length = 0;
+  }
+
+  private removeStale<T extends Container | ShipView>(
+    items: Map<number, TrackedView<T>>,
   ) {
-    for (const [id, view] of items) {
-      if (present.has(id)) continue;
-      const node = "root" in view ? view.root : view;
+    for (const [id, tracked] of items) {
+      if (tracked.renderedAt === this.renderNumber) continue;
+      const node = displayNode(tracked.view);
       node.parent?.removeChild(node);
       node.destroy({ children: true });
       items.delete(id);
     }
   }
+
+  private destroyViews<T extends Container | ShipView>(
+    items: Map<number, TrackedView<T>>,
+  ) {
+    for (const [, tracked] of items) {
+      const node = displayNode(tracked.view);
+      node.parent?.removeChild(node);
+      node.destroy({ children: true });
+    }
+    items.clear();
+  }
 }
 
 function snapshotTime(remaining: number, id: number) {
   return (COMBAT_FEEDBACK.hitDuration - remaining) * 105 + id * 1.7;
+}
+
+function displayNode(view: Container | ShipView): Container {
+  return "root" in view ? view.root : view;
 }

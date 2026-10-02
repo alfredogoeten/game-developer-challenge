@@ -5,7 +5,7 @@ import type { GameOptions } from "../options/gameOptions";
 import { loadBattleTextures } from "./assets";
 import { BattleRenderer } from "./BattleRenderer";
 import { GameSimulation } from "./GameSimulation";
-import type { Action, GameSnapshot } from "./model";
+import type { Action, BattleHudSnapshot, GameSnapshot } from "./model";
 import { InputController } from "./InputController";
 import type { BattleTestBridge } from "./testBridge";
 
@@ -13,6 +13,7 @@ type BattleScreenProps = {
   options: GameOptions;
   onFinish: (snapshot: GameSnapshot) => void;
   onExit: () => void;
+  onOpenOptions: () => void;
 };
 
 const TOUCH_CONTROLS: { action: Action; label: string; icon: string }[] = [
@@ -29,7 +30,7 @@ function isPortraitMobile() {
     .matches;
 }
 
-export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
+export function BattleScreen({ options, onFinish, onExit, onOpenOptions }: BattleScreenProps) {
   const balance = useMemo(() => createGameBalance(options), [options]);
   const mountRef = useRef<HTMLDivElement>(null);
   const simulationRef = useRef<GameSimulation | null>(null);
@@ -39,7 +40,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
   const [progress, setProgress] = useState(0);
   const [loadError, setLoadError] = useState("");
   const [ready, setReady] = useState(false);
-  const [hud, setHud] = useState<GameSnapshot | null>(null);
+  const [hud, setHud] = useState<BattleHudSnapshot | null>(null);
   const [portrait, setPortrait] = useState(isPortraitMobile);
   const [exitDialog, setExitDialog] = useState(false);
   const exitDialogRef = useRef(false);
@@ -61,9 +62,20 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
     let accumulator = 0;
     let lastHudUpdate = 0;
     let bridge: BattleTestBridge | null = null;
+    let renderer: BattleRenderer | null = null;
     const profiling = new URLSearchParams(location.search).has("profile");
     const frameTimes: number[] = [];
+    let simulationTimeMs = 0;
+    let rendererTimeMs = 0;
     let maxEntities = 0;
+    let canvasCountAtLastFrame = 0;
+    if (profiling) {
+      window.__pirateBattleProfileStatus = {
+        activeBattleInstances: 1,
+        activeInputControllers: 0,
+        activeTickers: 0,
+      };
+    }
     const simulation = new GameSimulation(
       balance,
       import.meta.env.DEV && new URLSearchParams(location.search).has("e2e")
@@ -71,13 +83,14 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
         : Date.now(),
     );
     simulationRef.current = simulation;
+    if (profiling) simulation.setProfileInvulnerable(true);
     if (isPortraitMobile()) simulation.setPaused(true);
 
     const publish = (force = false) => {
       if (disposed) return;
       const now = performance.now();
       if (force || now - lastHudUpdate >= 100) {
-        setHud(simulation.snapshot());
+        setHud(simulation.hudSnapshot());
         lastHudUpdate = now;
       }
     };
@@ -91,10 +104,9 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
     const recordFrame = (frameMs: number) => {
       if (!profiling || frameMs <= 0 || frameMs > 250) return;
       frameTimes.push(frameMs);
-      const state = simulation.snapshot();
       maxEntities = Math.max(
         maxEntities,
-        1 + state.enemies.length + state.projectiles.length + state.effects.length,
+        1 + simulation.enemies.length + simulation.projectiles.length + simulation.effects.length,
       );
     };
 
@@ -119,12 +131,12 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
         });
         applicationReady = true;
         if (disposed) {
-          app.destroy(true, { children: true });
+          app.destroy({ removeView: true }, { children: true, context: true });
           return;
         }
-        const renderer = new BattleRenderer(app, textures, balance);
+        renderer = new BattleRenderer(app, textures, balance);
         mountRef.current?.appendChild(app.canvas);
-        renderer.render(simulation.snapshot());
+        renderer.render(simulation.renderState());
         app.render();
         input = new InputController(
           () => !simulation.paused && !simulation.ended && !isPortraitMobile(),
@@ -141,6 +153,8 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           },
         );
         inputRef.current = input;
+        if (profiling && window.__pirateBattleProfileStatus)
+          window.__pirateBattleProfileStatus.activeInputControllers = 1;
         if (profiling) {
           window.__pirateBattleProfile = {
             snapshot: () => {
@@ -153,6 +167,13 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
                   ? sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)]
                   : 0,
                 maxEntities,
+                simulationMeanMs: frameTimes.length
+                  ? simulationTimeMs / frameTimes.length
+                  : 0,
+                rendererMeanMs: frameTimes.length ? rendererTimeMs / frameTimes.length : 0,
+                activeDurationSeconds: simulation.elapsed,
+                endReason: simulation.ended,
+                activeCanvasCount: canvasCountAtLastFrame,
               };
             },
           };
@@ -176,14 +197,14 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
                 );
                 if (simulation.ended) break;
               }
-              renderer.render(simulation.snapshot());
+              renderer?.render(simulation.renderState());
               app.render();
               publish(true);
               finishIfEnded();
             },
             spawn: (kind, x, y) => {
               simulation.debugSpawn(kind, x, y);
-              renderer.render(simulation.snapshot());
+              renderer?.render(simulation.renderState());
               app.render();
               publish(true);
             },
@@ -197,6 +218,8 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           };
           window.__pirateBattleTest = bridge;
         } else {
+          if (profiling && window.__pirateBattleProfileStatus)
+            window.__pirateBattleProfileStatus.activeTickers = 1;
           app.ticker.add((ticker) => {
             recordFrame(ticker.deltaMS);
             if (simulation.paused || simulation.ended) {
@@ -206,13 +229,18 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
             }
             accumulator = Math.min(accumulator + ticker.deltaMS / 1000, 0.25);
             let iterations = 0;
+            const simulationStart = performance.now();
             while (accumulator >= 1 / 60 && iterations < 8) {
               simulation.step(1 / 60, input?.getActions() ?? new Set<Action>());
               accumulator -= 1 / 60;
               iterations += 1;
               if (simulation.ended) break;
             }
-            renderer.render(simulation.snapshot());
+            simulationTimeMs += performance.now() - simulationStart;
+            const rendererStart = performance.now();
+            renderer?.render(simulation.renderState());
+            rendererTimeMs += performance.now() - rendererStart;
+            canvasCountAtLastFrame = document.querySelectorAll(".battle-stage canvas").length;
             publish();
             finishIfEnded();
           });
@@ -236,7 +264,18 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
       if (window.__pirateBattleTest === bridge)
         delete window.__pirateBattleTest;
       if (!profiling) delete window.__pirateBattleProfile;
-      if (applicationReady) application?.destroy(true, { children: true });
+      if (profiling)
+        window.__pirateBattleProfileStatus = {
+          activeBattleInstances: 0,
+          activeInputControllers: 0,
+          activeTickers: 0,
+        };
+      renderer?.destroy();
+      if (applicationReady)
+        application?.destroy(
+          { removeView: true },
+          { children: true, context: true },
+        );
       simulationRef.current = null;
     };
   }, [balance, loadAttempt]);
@@ -248,7 +287,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
       if (next) {
         simulationRef.current?.setPaused(true);
         inputRef.current?.clear();
-        if (simulationRef.current) setHud(simulationRef.current.snapshot());
+        if (simulationRef.current) setHud(simulationRef.current.hudSnapshot());
       }
     };
     window.addEventListener("resize", checkOrientation);
@@ -266,7 +305,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
     if (!simulation || simulation.ended || portrait) return;
     inputRef.current?.clear();
     simulation.setPaused(!simulation.paused);
-    setHud(simulation.snapshot());
+    setHud(simulation.hudSnapshot());
   }
 
   function handleTouchDown(
@@ -307,7 +346,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
   }
 
   const remaining = Math.ceil(hud?.remaining ?? balance.duration);
-  const health = hud?.player.health ?? balance.player.health;
+  const health = hud?.playerHealth ?? balance.player.health;
   const healthRatio = Math.max(0, Math.min(1, health / balance.player.health));
   const healthState = healthRatio > 0.5 ? "green" : healthRatio > 0.25 ? "amber" : "red";
   return (
@@ -323,30 +362,21 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           </span>
           <span className="hud-health__value"><span data-testid="health">{health}</span> / {balance.player.health}</span>
         </div>
-        <div className="hud-counters">
-          <strong className="hud-counter hud-counter--score" aria-label={`Score: ${hud?.score ?? 0}`}><span data-testid="score">{hud?.score ?? 0}</span></strong>
-          <strong className="hud-counter hud-counter--time" aria-label={`Time: ${remaining} seconds`}><span data-testid="time">{remaining}</span></strong>
+        <div className="hud-actions">
+          <div className="hud-counters">
+            <strong className="hud-counter hud-counter--score" aria-label={`Score: ${hud?.score ?? 0}`}><span data-testid="score">{hud?.score ?? 0}</span></strong>
+            <strong className="hud-counter hud-counter--time" aria-label={`Time: ${remaining} seconds`}><span data-testid="time">{remaining}</span></strong>
+          </div>
+          <button
+            aria-label={hud?.paused ? "Resume game" : "Pause game"}
+            className="hud-round-button hud-round-button--pause"
+            disabled={!ready || portrait}
+            onClick={togglePause}
+            type="button"
+          >
+            <span aria-hidden="true" className="hud-round-button__icon hud-round-button__icon--pause" />
+          </button>
         </div>
-        <button
-          aria-label={hud?.paused ? "Resume game" : "Pause game"}
-          className="hud-round-button hud-round-button--pause"
-          disabled={!ready || portrait}
-          onClick={togglePause}
-          type="button"
-        >
-          <span aria-hidden="true" className="hud-round-button__icon hud-round-button__icon--pause" />
-        </button>
-        <button
-          aria-label="Main Menu"
-          className="hud-round-button hud-round-button--home"
-          onClick={() => {
-            togglePauseIfRunning();
-            setExitDialog(true);
-          }}
-          type="button"
-        >
-          <span aria-hidden="true" className="hud-round-button__icon hud-round-button__icon--home" />
-        </button>
       </header>
       <div
         className="battle-stage"
@@ -396,13 +426,20 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
           >
             Resume
           </button>
-            <button
-            className="asset-button asset-button--secondary"
+          <button
+            className="asset-button asset-button--primary"
+            onClick={onOpenOptions}
+            type="button"
+          >
+            Options
+          </button>
+          <button
+            className="asset-button asset-button--primary"
             onClick={() => setExitDialog(true)}
             type="button"
           >
             Main Menu
-            </button>
+          </button>
           </div>
         </div>
       ) : null}
@@ -419,7 +456,7 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
             <p>This match will be abandoned and will not be recorded.</p>
             <div className="dialog-actions">
             <button
-              className="asset-button asset-button--secondary"
+              className="asset-button asset-button--primary"
               onClick={() => setExitDialog(false)}
               ref={exitCancelRef}
               type="button"
@@ -467,12 +504,4 @@ export function BattleScreen({ options, onFinish, onExit }: BattleScreenProps) {
       </p>
     </section>
   );
-
-  function togglePauseIfRunning() {
-    const simulation = simulationRef.current;
-    if (!simulation || simulation.paused) return;
-    simulation.setPaused(true);
-    inputRef.current?.clear();
-    setHud(simulation.snapshot());
-  }
 }

@@ -10,18 +10,19 @@ export async function getRanking(
   options: GameOptions,
   balance: GameBalance,
   page: number,
+  pageSize: number,
   signal: AbortSignal,
 ) {
   const result = await http.get<Page<RankingEntry>>("/ranking", {
-    params: { config: configurationKey({ options, balance }), page },
+    params: { config: configurationKey({ options, balance }), page, pageSize },
     signal,
   });
   return result.data;
 }
 
-export async function getHistory(playerId: string, page: number, signal: AbortSignal) {
+export async function getHistory(playerId: string, page: number, pageSize: number, signal: AbortSignal) {
   const result = await http.get<Page<MatchRecord>>("/matches", {
-    params: { playerId, page },
+    params: { playerId, page, pageSize },
     signal,
   });
   return result.data;

@@ -1,18 +1,18 @@
 # Pirate Battle
 
-A browser-based, single-player naval shooter built with React, TypeScript, and PixiJS. Ranking and Match History use a browser-hosted MSW API, Axios, and TanStack Query. It includes reproducible network scenarios, visual regression checks, and a production-preview profiling harness.
+A browser-based single-player naval shooter built with React, TypeScript, and PixiJS. Ranking and Match History use a browser-hosted MSW API, Axios, and TanStack Query.
 
-## Requirements and setup
+## Setup
 
-- Node.js 20.19 or later and npm 10 or later
-- A browser with WebGL support and local storage enabled
+Requirements: Node.js 20.19+, npm 10+, WebGL, and local storage. No environment variables or private services are required.
 
 ```bash
 npm ci
+npx playwright install chromium
 npm run dev
 ```
 
-On PowerShell installations that block `npm.ps1`, use `npm.cmd` instead of `npm`.
+On PowerShell installations that block `npm.ps1`, use `npm.cmd` in place of `npm`.
 
 | Command | Purpose |
 | --- | --- |
@@ -23,59 +23,64 @@ On PowerShell installations that block `npm.ps1`, use `npm.cmd` instead of `npm`
 | `npm run typecheck` | Check TypeScript without emitting source files. |
 | `npm run test:e2e` | Run desktop and mobile Chromium Playwright tests. |
 | `npm run test:e2e:ui` | Open the interactive Playwright runner. |
-| `npm run profile` | Build the app and write a Chromium production-preview performance report to `reports/profiling.json`. |
+| `npm run profile` | Build and profile an interactive Chromium production preview. |
+| `npm run profile -- --headless` | Produce a diagnostic headless profile only. |
 
-The E2E suite writes an HTML report to `reports/playwright/` and retains traces for failed tests. Screenshot baselines for Windows Chromium are stored under `e2e/visual.spec.ts-snapshots/`. The MSW worker is stored in `public/mockServiceWorker.js` and is included in production builds. No environment variables or private services are required.
+From a clean checkout, run `npm ci`, `npx playwright install chromium`, `npm run build`, `npm run preview`, and `npm run test:e2e`. The MSW worker in `public/mockServiceWorker.js` is included in development and production. The E2E report is written to `reports/playwright/`; failed tests retain traces, and versioned visual baselines are under `e2e/visual.spec.ts-snapshots/`.
 
-## Play
+## Controls and gameplay
 
 | Action | Keyboard | Touch in landscape |
 | --- | --- | --- |
-| Move forward | `W` or `↑` | Up button |
-| Turn left / right | `A` / `D` or `←` / `→` | Left / right buttons |
+| Move forward | `W` or Up Arrow | Up button |
+| Turn left / right | `A` / `D` or Left / Right Arrow | Left / right buttons |
 | Fire front cannon | `Space` | Center fire button |
-| Fire three parallel shots to the left / right | `Q` / `E` | Left / right fire buttons |
+| Fire left / right broadside | `Q` / `E` | Left / right fire buttons |
 | Pause or resume | `Esc` | Pause / Resume button |
 
-Controls can be held together. On phones, rotate to landscape before combat; rotating to portrait pauses the match until the player rotates back and selects **Resume**. Losing browser focus or hiding the tab also pauses the match. Time, cooldowns, movement, and spawns do not advance while paused. **Main Menu** or a page reload abandons the current match without recording it.
+Inputs can be held together. On phones, combat requires landscape orientation; portrait, lost focus, and a hidden tab pause the game. A match ends when time expires or player health reaches zero. Main Menu and page reload abandon an unfinished match.
 
-Chasers pursue and explode against the player; they take two cannonball hits to destroy. Shooters take one hit, move toward the player, and fire within range when an island does not block the shot. They navigate around cover to regain a firing line. Two small, irregular islands create cover lanes with a wide central passage and stop ships and cannonballs. A projectile hit produces a small explosion and a brief visual shake on the damaged ship. Each enemy destroyed by a player projectile gives one point. A Chaser that explodes against the player gives no points. The match ends when the timer expires or player health reaches zero.
+Chasers pursue and explode on the player; Shooters move into range and fire when an island does not block their shot. Islands block ships and projectiles. A destroyed enemy grants one point only when the player dealt the damage.
 
-## Options and local results
+## Options, results, and gameplay configuration
 
-Options are stored under `pirate-battle.options.v1`. Invalid or unreadable data falls back to defaults. A match uses the options selected when **Play** was pressed.
+Each `+` or `−` click in Options saves the new value immediately under `pirate-battle.options.v1` and updates the next-match configuration. **MAIN MENU** and `Esc` return to the menu. If local storage rejects a write, the displayed value stays unchanged and an accessible error appears; clicking again retries. Invalid stored options fall back to defaults. Every new match snapshots the saved options.
 
 | Option | Default | Allowed values |
 | --- | ---: | --- |
-| Game session time | 60 or 180 seconds |
+| Game session time | 60 seconds | 60 or 180 seconds |
 | Enemy spawn time | 3 seconds | Whole seconds from 2 through 10 |
 
-**Save** validates and persists Options. Leaving with unsaved changes requires confirmation. If local storage rejects a save, the screen reports the error and allows retry.
+The rest of the typed balance is centralized in `src/features/battle/gameBalance.ts`: arena, islands, ship health and movement, weapons, projectiles, enemy behavior, and spawn locations. The player starts with **100 HP**. A Shooter projectile deals **12**, a Chaser collision deals **25**, and a player projectile deals **1** to an enemy. At most **six living enemies** appear at once. The spawn countdown freezes at that limit and resumes with its remaining time when an enemy leaves. Completed matches retain a stable player ID, match ID, completion time, active duration, reason, option snapshot, and balance snapshot. They enter a local pending queue before registration; failed or timed-out submissions can be retried after refresh without blocking another match.
 
-Completed matches are stored under `pirate-battle.matches.v1` with a stable player ID, a unique match ID, date, score, active duration, end reason, and the configuration snapshot. The last result is available from **Last Result** after a refresh. A completed match enters a local **Pending** queue before an HTTP registration attempt. Confirmed records are stored separately under `pirate-battle.confirmed.v1` and then removed from the pending queue. An unsuccessful or timed-out send remains pending and can be retried after refresh. Starting another match does not clear pending records. A failed local result save can be retried on the result screen.
+## Ranking, history, and network scenarios
 
-## Ranking, Match History, and network scenarios
+The API routes are `GET /api/ranking?config=<encoded configuration>&page=<n>&pageSize=<2|5>`, `GET /api/matches?playerId=<id>&page=<n>&pageSize=<2|5>`, and `POST /api/matches`. Ranking and history show two records per page in compact mobile viewports and five on desktop; resizing resets to page one. Omitted `pageSize` defaults to five for older callers. `matchId` is the idempotency key: a repeated POST returns the previous record and cannot create duplicate ranking or history entries. TanStack Query handles query cache, retries, cancellation, and invalidation; Axios carries the requests; MSW provides the browser-hosted API.
 
-The main menu opens **Ranking** and **Match History** as separate screens, each with a back button and Escape shortcut. Ranking shows matches made with the currently saved Options and the current balance snapshot. It displays five matches per page, ordered by score descending, then completion date and match ID ascending. Every completed match has one ranking entry. Match History shows the current player's completed matches across all configurations, newest first, also five per page. Other players come from deterministic fixtures. Reopening either screen refreshes it; a successful registration invalidates both queries.
+Use the **Network scenario** selector in the main menu for empty and paginated lists, latency, out-of-order responses, timeouts, connection and HTTP failures, isolated record-screen failures, post-commit timeout, and unavailable registration. **Reset mock data** selects Success and clears only confirmed mock records. It preserves options, the last local result, and pending submissions.
 
-The browser API has three routes: `GET /api/ranking?config=<encoded configuration>&page=<n>`, `GET /api/matches?playerId=<id>&page=<n>`, and `POST /api/matches` with a `MatchRecord` JSON body. `matchId` is the idempotency key. A repeated POST returns the existing record and cannot create a second ranking or history entry. Axios sends the requests; TanStack Query handles consultation, registration, retries for transient query failures, cache, and invalidation. The MSW worker starts before the app renders in development and preview/production builds. If it cannot start, the local game still works and the remote screens show an error.
+For deterministic latency, `networkSeed=<0..5000>` and `networkDelayMs=<0..5000>` URL parameters control variation and delay. Defaults are seed 41, slow delay 700 ms, out-of-order delay 850 ms, and timeout delay 1800 ms. Timeout delay is at least 1300 ms, exceeding the Axios 1200 ms timeout.
 
-Use the **Network scenario** selector in the main menu to reproduce empty results, multiple pages, slow or variable latency, out-of-order responses, timeouts, connection and HTTP failures, isolated screen failures, a timeout after POST commit, and unavailable registration. Choosing another scenario cancels outstanding ranking and history requests, so a late response cannot replace current data. **Reset mock data** returns to Success and clears only confirmed MSW records; saved options, the last result, and local pending submissions remain available.
+### Reproducing network failures
 
-For reproducible latency tests, URL parameters `networkSeed=<0..5000>` and `networkDelayMs=<0..5000>` control the deterministic variation and delay in milliseconds. The defaults are seed 41, slow delay 700 ms, out-of-order delay 850 ms, and timeout delay 1800 ms. Timeout delays have a 1300 ms minimum so they exceed the Axios 1200 ms timeout. The test clock remains controlled separately by `?e2e=1` in development.
+Select a scenario in the main menu, open the affected record screen or finish a short match, then use **Success** and **Retry** or **Retry Sync** to recover.
 
-The gameplay balance lives in `src/features/battle/gameBalance.ts`; movement, health, weapon, projectile, enemy, spawn, and arena values are centralized there. Only session duration and spawn interval appear in Options. Options, battle, matches, and menu each own their code under `src/features/`; `App.tsx` coordinates navigation between them.
+| Scenario | Reproduction | Expected recovery |
+| --- | --- | --- |
+| `ranking-error` / `history-error` | Open the corresponding screen. | An accessible error appears; Retry reloads after Success. |
+| `timeout`, `connection-error`, `http-500` | Open Ranking or Match History. | Transient queries retry, then retain the error until Retry after Success. |
+| `post-commit-timeout` | Finish a match, wait for Pending, select Success, then Retry Sync. | The same `matchId` appears once in history and ranking. |
+| `unavailable-on-post` | Finish a match. | The match remains locally pending and can be retried after Success. |
+| `out-of-order` | Open a records screen, change pages, then change scenario or page again. | Cancellation and query keys keep the latest request authoritative. |
 
-## Testing notes
+## Tests, profiling, and deploy preparation
 
-Development builds opened with `?e2e=1` expose `window.__pirateBattleTest` after assets load. Playwright uses its seeded simulation clock to observe snapshots, step fixed ticks, place an enemy, and set elapsed time near the end of a match. The bridge is absent from production builds. Each Playwright context starts with isolated browser storage.
+Development builds opened with `?e2e=1` expose `window.__pirateBattleTest` only after assets load. Playwright advances the seeded fixed-step simulation, uses actual keyboard and pointer handlers, and observes snapshots. Each context uses isolated browser storage. Layout tests assert no document scrolling and reachable buttons at 320×568, 667×375, and 851×393.
 
-## Performance and deployment
+Run `npm run profile` on the documented reference desktop. It opens Chromium visibly, runs an optimized preview for 180 active seconds, and writes [profiling report](reports/profiling.json). The profiling harness makes only the player invulnerable so a full-duration stress capture is possible; spawning, navigation, shots, effects, collision, and rendering remain active. The report contains FPS, mean and p95 frame interval, maximum entities, mean simulation and Pixi synchronization time, active duration, end reason, CPU, GPU when Chromium exposes it, browser, viewport, DPR, heap after forced garbage collection, and resource state after five start/leave cycles.
 
-Run `npm run profile` on the intended reference machine after installing Chromium for Playwright. The generated [profiling report](reports/profiling.json) records mean and 95th-percentile frame intervals, maximum entities, available Chromium heap readings before and after five start/leave cycles, and its measurement environment. Headless Chromium may not expose `performance.memory`; the report records `null` in that case instead of estimating memory use.
+A valid reference profile ends by time after 180 active seconds. The target is at least 58 FPS and p95 frame interval no greater than 20 ms. A failed target is recorded as an observed limitation, never reported as a 60 FPS result. Headless captures are diagnostic only.
 
-The checked-in capture ran on Chromium 153 headless at 1440 × 900 with a 180-second game and 10-second spawns. It observed 29.81 ms mean frame time (about 33.5 FPS), 33.40 ms p95, and seven maximum entities; it therefore does not meet the 60 FPS / 16.67 ms target in this headless environment. The heap reading remained 10,000,000 bytes across five start/leave cycles, but Chromium exposes that value at coarse granularity. Hardware inventory was unavailable to the sandbox, so repeat the command in the intended interactive reference browser before using the result as a release performance claim.
+Vercel is configured through [vercel.json](vercel.json) to build with `npm run build` and serve `dist`. After linking an authorized account, deploy and validate refresh, canvas/assets, the MSW service worker, Ranking, Match History, and completed-match registration. A public URL is intentionally outside this local implementation step.
 
-Vercel is configured through [vercel.json](vercel.json) to build with `npm run build` and serve `dist`. Import the GitHub repository in Vercel or run `vercel --prod` from the repository root while authenticated, then validate the deployed URL after a refresh: the canvas, assets, MSW service worker, Ranking, Match History, and a completed-match registration must all work. The public URL will be added once the repository is linked to an authorized Vercel account.
-
-The supplied visual and audio assets are under `assets/`. They were provided with the challenge; no license file or attribution metadata was supplied, so their license is documented as unknown. The challenge brief is preserved in [CHALLENGE.md](CHALLENGE.md), and implementation decisions are in [ARCHITECTURE.md](ARCHITECTURE.md).
+The supplied visual and audio assets are under `assets/`. No license or attribution metadata was supplied. The challenge brief is in [CHALLENGE.md](CHALLENGE.md), architectural decisions are in [ARCHITECTURE.md](ARCHITECTURE.md), and verification evidence is in [reports/README.md](reports/README.md).

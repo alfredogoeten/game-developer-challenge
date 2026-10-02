@@ -30,7 +30,7 @@ export function ResultScreen({
   return (
     <section className="menu-panel result-panel" aria-labelledby="result-title">
       <h1 id="result-title" ref={titleRef} tabIndex={-1}>
-        Battle Result
+        Battle Complete
       </h1>
       <p className="result-score">
         {record.score} <span>points</span>
@@ -62,14 +62,14 @@ export function ResultScreen({
       ) : <p className="result-note">Your match is recorded in Ranking and Match History.</p>}
       {!saved ? (
         <button
-          className="asset-button asset-button--secondary"
+          className="asset-button asset-button--primary"
           onClick={onRetrySave}
           type="button"
         >
           Retry Save
         </button>
       ) : null}
-      {saved && pending ? <button className="asset-button asset-button--secondary" disabled={syncing} onClick={onRetrySync} type="button">{syncing ? "Syncing…" : "Retry Sync"}</button> : null}
+      {saved && pending ? <button className="asset-button asset-button--primary" disabled={syncing} onClick={onRetrySync} type="button">{syncing ? "Syncing…" : "Retry Sync"}</button> : null}
       <div className="result-actions">
         <button
           className="asset-button asset-button--primary"
@@ -79,7 +79,7 @@ export function ResultScreen({
           Play Again
         </button>
         <button
-          className="asset-button asset-button--secondary"
+          className="asset-button asset-button--primary"
           onClick={onMainMenu}
           type="button"
         >

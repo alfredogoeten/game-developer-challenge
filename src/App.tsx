@@ -130,9 +130,8 @@ function App() {
     });
   }
 
-  function handleSave(options: GameOptions) {
+  function handleOptionsChange(options: GameOptions) {
     setGameOptions(options);
-    returnToMenu("Options saved.");
   }
 
   function startGame() {
@@ -201,10 +200,11 @@ function App() {
         <OptionsScreen
           initialOptions={gameOptions}
           onReturnToMenu={() => returnToMenu()}
-          onSave={handleSave}
+          onChange={handleOptionsChange}
         />
       ) : screen === "ranking" ? (
         <RecordsScreen
+          key="ranking"
           kind="ranking"
           options={gameOptions}
           playerId={localMatches.playerId}
@@ -215,6 +215,7 @@ function App() {
         />
       ) : screen === "history" ? (
         <RecordsScreen
+          key="history"
           kind="history"
           options={gameOptions}
           playerId={localMatches.playerId}
@@ -227,6 +228,7 @@ function App() {
         <BattleScreen
           key={battleKey}
           onExit={() => setScreen("menu")}
+          onOpenOptions={openOptions}
           onFinish={finishGame}
           options={battleOptions}
         />

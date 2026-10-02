@@ -57,7 +57,3 @@ export function networkTiming() {
   };
   return { seed: read("networkSeed", 41), delayMs: read("networkDelayMs", 0) };
 }
-
-export function resetScenario() {
-  saveScenario("success");
-}

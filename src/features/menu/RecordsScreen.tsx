@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { createGameBalance } from "../battle/gameBalance";
 import { getHistory, getRanking, shouldRetry } from "../matches/api";
@@ -9,6 +9,11 @@ import {
 } from "../matches/contracts";
 import type { MatchRecord } from "../matches/model";
 import type { GameOptions } from "../options/gameOptions";
+
+const COMPACT_RECORDS = "(max-width: 600px), (max-height: 600px) and (max-width: 900px)";
+function currentPageSize() {
+  return window.matchMedia(COMPACT_RECORDS).matches ? 2 : 5;
+}
 
 type RecordScreenKind = "ranking" | "history";
 
@@ -32,28 +37,41 @@ export function RecordsScreen({
   onOpenHistory,
 }: RecordsScreenProps) {
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(currentPageSize);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const isRanking = kind === "ranking";
   const title = isRanking ? "Ranking" : "Match History";
-  const balance = createGameBalance(options);
-  const config = configurationKey({ options, balance });
+  const balance = useMemo(() => createGameBalance(options), [options]);
+  const config = useMemo(
+    () => configurationKey({ options, balance }),
+    [options, balance],
+  );
+  useEffect(() => {
+    const media = window.matchMedia(COMPACT_RECORDS);
+    const update = () => {
+      setPage(1);
+      setPageSize(media.matches ? 2 : 5);
+    };
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
   const ranking = useQuery({
-    queryKey: ["ranking", config, page, scenarioEpoch],
-    queryFn: ({ signal }) => getRanking(options, balance, page, signal),
+    queryKey: ["ranking", config, page, pageSize, scenarioEpoch],
+    queryFn: ({ signal }) => getRanking(options, balance, page, pageSize, signal),
     enabled: isRanking,
     staleTime: 30_000,
     refetchOnMount: "always",
     retry: shouldRetry,
-    placeholderData: keepPreviousData,
+    placeholderData: pageSize === 5 ? keepPreviousData : undefined,
   });
   const history = useQuery({
-    queryKey: ["history", playerId, page, scenarioEpoch],
-    queryFn: ({ signal }) => getHistory(playerId, page, signal),
+    queryKey: ["history", playerId, page, pageSize, scenarioEpoch],
+    queryFn: ({ signal }) => getHistory(playerId, page, pageSize, signal),
     enabled: !isRanking,
     staleTime: 30_000,
     refetchOnMount: "always",
     retry: shouldRetry,
-    placeholderData: keepPreviousData,
+    placeholderData: pageSize === 5 ? keepPreviousData : undefined,
   });
   const query = isRanking ? ranking : history;
   const data = query.data as Page<RankingEntry | MatchRecord> | undefined;
@@ -91,7 +109,7 @@ export function RecordsScreen({
       <nav aria-label="Captain's log sections" className="records-tabs">
         <button
           aria-current={isRanking ? "page" : undefined}
-          className={`asset-button ${isRanking ? "asset-button--primary" : "asset-button--secondary"}`}
+          className="asset-button asset-button--secondary"
           onClick={onOpenRanking}
           type="button"
         >
@@ -99,7 +117,7 @@ export function RecordsScreen({
         </button>
         <button
           aria-current={!isRanking ? "page" : undefined}
-          className={`asset-button ${!isRanking ? "asset-button--primary" : "asset-button--secondary"}`}
+          className="asset-button asset-button--secondary"
           onClick={onOpenHistory}
           type="button"
         >
@@ -124,7 +142,7 @@ export function RecordsScreen({
           <div role="alert">
             <p>Could not load {title.toLowerCase()}.</p>
             <button
-              className="hud-button"
+              className="asset-button asset-button--primary"
               onClick={() => void query.refetch()}
               type="button"
             >
@@ -140,7 +158,7 @@ export function RecordsScreen({
         {data && data.items.length > 0 ? (
           <>
             {isRanking ? (
-              <ol className="records-list" start={(page - 1) * 5 + 1}>
+              <ol className="records-list" start={(page - 1) * pageSize + 1}>
                 {(data.items as RankingEntry[]).map((entry) => (
                   <li key={entry.matchId}>
                     <span>

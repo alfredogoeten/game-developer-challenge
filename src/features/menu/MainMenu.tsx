@@ -47,7 +47,7 @@ export function MainMenu({
   onResetDemoData,
 }: MainMenuProps) {
   return (
-    <section className="menu-panel" aria-labelledby="menu-title">
+    <section className="menu-panel main-menu" aria-labelledby="menu-title">
       <h1 className="sr-only" id="menu-title">
         Pirate Battle
       </h1>
@@ -114,7 +114,7 @@ export function MainMenu({
       {pendingCount > 0 ? (
         <div className="pending-notice" role="status">
           <span>{pendingCount} match{pendingCount === 1 ? "" : "es"} pending registration.</span>
-          <button className="hud-button" disabled={syncing} onClick={onRetryPending} type="button">{syncing ? "Syncing…" : "Retry Sync"}</button>
+          <button className="asset-button asset-button--primary" disabled={syncing} onClick={onRetryPending} type="button">{syncing ? "Syncing…" : "Retry Sync"}</button>
         </div>
       ) : null}
       <section aria-labelledby="network-scenario-title" className="network-scenarios">
@@ -132,7 +132,7 @@ export function MainMenu({
           ))}
         </select>
         <button
-          className="hud-button"
+          className="asset-button asset-button--primary"
           onClick={onResetDemoData}
           type="button"
         >

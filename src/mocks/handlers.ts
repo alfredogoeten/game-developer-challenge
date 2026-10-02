@@ -1,5 +1,5 @@
 import { delay, http, HttpResponse, passthrough } from "msw";
-import { configurationKey, paginate, type RankingEntry } from "../features/matches/contracts";
+import { configurationKey, paginate, PAGE_SIZE, type RankingEntry } from "../features/matches/contracts";
 import { isMatchRecord } from "../features/matches/matchStorage";
 import type { MatchRecord } from "../features/matches/model";
 import { FIXTURE_MATCHES, PLAYER_NAMES } from "./fixtures";
@@ -9,6 +9,13 @@ import { confirmRemoteMatch, confirmedMatches } from "./store";
 function pageNumber(request: Request) {
   const number = Number(new URL(request.url).searchParams.get("page"));
   return Number.isInteger(number) && number > 0 && number <= 1000 ? number : null;
+}
+
+function pageSize(request: Request) {
+  const value = new URL(request.url).searchParams.get("pageSize");
+  if (value === null) return PAGE_SIZE;
+  const number = Number(value);
+  return number === 2 || number === PAGE_SIZE ? number : null;
 }
 
 async function networkCondition(scenario: Scenario, operation: "ranking" | "history" | "post", ordinal: number) {
@@ -35,15 +42,16 @@ export const handlers = [
     const scenario = activeScenario();
     const ordinal = nextRequestNumber();
     const page = pageNumber(request);
+    const size = pageSize(request);
     const config = new URL(request.url).searchParams.get("config");
-    if (!page || !config) return HttpResponse.json({ error: "Invalid pagination or configuration" }, { status: 400 });
+    if (!page || !size || !config) return HttpResponse.json({ error: "Invalid pagination or configuration" }, { status: 400 });
     const records = scenario === "empty" ? [] : [...FIXTURE_MATCHES, ...confirmedMatches()]
       .filter((item) => configurationKey(item) === config)
       .sort((a, b) => b.score - a.score || a.completedAt.localeCompare(b.completedAt) || a.matchId.localeCompare(b.matchId));
     const entries: RankingEntry[] = records.map((item, index) => ({
       ...item, rank: index + 1, playerName: PLAYER_NAMES[item.playerId] ?? "You",
     }));
-    const response = paginate(entries, page);
+    const response = paginate(entries, page, size);
     const failure = await networkCondition(scenario, "ranking", ordinal);
     return failure ?? HttpResponse.json(response);
   }),
@@ -51,15 +59,16 @@ export const handlers = [
     const scenario = activeScenario();
     const ordinal = nextRequestNumber();
     const page = pageNumber(request);
+    const size = pageSize(request);
     const playerId = new URL(request.url).searchParams.get("playerId");
-    if (!page || !playerId) return HttpResponse.json({ error: "Invalid pagination or player" }, { status: 400 });
+    if (!page || !size || !playerId) return HttpResponse.json({ error: "Invalid pagination or player" }, { status: 400 });
     const sampleHistory = scenario === "multiple-pages"
       ? FIXTURE_MATCHES.slice(0, 12).map((item) => ({ ...item, matchId: `sample-history-${item.matchId}`, playerId }))
       : [];
     const records = scenario === "empty" ? [] : [...sampleHistory, ...confirmedMatches()]
       .filter((item) => item.playerId === playerId)
       .sort((a, b) => b.completedAt.localeCompare(a.completedAt) || a.matchId.localeCompare(b.matchId));
-    const response = paginate(records, page);
+    const response = paginate(records, page, size);
     const failure = await networkCondition(scenario, "history", ordinal);
     return failure ?? HttpResponse.json(response);
   }),

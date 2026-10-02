@@ -50,11 +50,6 @@ export function confirmMatch(
   }
 }
 
-export function resetLocalMatches(): LocalMatches {
-  try { window.localStorage.removeItem(MATCH_STORAGE_KEY); } catch { /* Keep the game usable. */ }
-  return { playerId: crypto.randomUUID(), lastCompleted: null, pending: [] };
-}
-
 function isLocalMatches(value: unknown): value is LocalMatches {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<LocalMatches>;

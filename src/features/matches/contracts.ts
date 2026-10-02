@@ -27,12 +27,12 @@ export function configurationKey(record: Pick<MatchRecord, "options" | "balance"
   return JSON.stringify(canonical({ options: record.options, balance: record.balance }));
 }
 
-export function paginate<T>(items: T[], page: number): Page<T> {
-  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+export function paginate<T>(items: T[], page: number, pageSize = PAGE_SIZE): Page<T> {
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
   return {
-    items: items.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    items: items.slice((page - 1) * pageSize, page * pageSize),
     page,
-    pageSize: PAGE_SIZE,
+    pageSize,
     total: items.length,
     totalPages,
   };

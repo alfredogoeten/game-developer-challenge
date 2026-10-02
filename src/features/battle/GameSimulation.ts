@@ -12,6 +12,8 @@ import type {
   EnemyKind,
   Effect,
   EndReason,
+  BattleHudSnapshot,
+  BattleRenderState,
   GameSnapshot,
   Projectile,
   Ship,
@@ -52,6 +54,7 @@ export class GameSimulation {
   paused = false;
   ended: EndReason | null = null;
   spawnCount = 0;
+  private profileInvulnerable = false;
   private spawnCooldown: number;
   private frontCooldown = 0;
   private portCooldown = 0;
@@ -98,8 +101,27 @@ export class GameSimulation {
     };
   }
 
+  renderState(): BattleRenderState {
+    return this;
+  }
+
+  hudSnapshot(): BattleHudSnapshot {
+    return {
+      playerHealth: this.player.health,
+      playerMaxHealth: this.player.maxHealth,
+      score: this.score,
+      remaining: Math.max(0, this.balance.duration - this.elapsed),
+      paused: this.paused,
+      ended: this.ended,
+    };
+  }
+
   setPaused(value: boolean) {
     if (!this.ended) this.paused = value;
+  }
+
+  setProfileInvulnerable(value: boolean) {
+    this.profileInvulnerable = value;
   }
 
   step(dt: number, actions: ReadonlySet<Action>) {
@@ -120,13 +142,16 @@ export class GameSimulation {
     this.updateEffects(delta);
     if (this.ended) return;
 
-    this.spawnCooldown -= delta;
-    while (
-      this.spawnCooldown <= SIMULATION_TUNING.spawnTimeEpsilon &&
-      !this.ended
-    ) {
-      this.spawnEnemy();
-      this.spawnCooldown += this.balance.spawn.interval;
+    if (this.enemies.length < this.balance.spawn.maxConcurrent) {
+      this.spawnCooldown -= delta;
+      while (
+        this.spawnCooldown <= SIMULATION_TUNING.spawnTimeEpsilon &&
+        this.enemies.length < this.balance.spawn.maxConcurrent &&
+        !this.ended
+      ) {
+        this.spawnEnemy();
+        this.spawnCooldown += this.balance.spawn.interval;
+      }
     }
   }
 
@@ -176,7 +201,8 @@ export class GameSimulation {
   }
 
   private updateEnemies(dt: number) {
-    for (const enemy of [...this.enemies]) {
+    for (let index = 0; index < this.enemies.length;) {
+      const enemy = this.enemies[index];
       const spec = this.balance[enemy.kind];
       const distance = Math.hypot(
         this.player.x - enemy.x,
@@ -260,14 +286,18 @@ export class GameSimulation {
           "explosion",
           COMBAT_FEEDBACK.explosionDuration,
         );
-        this.enemies.splice(this.enemies.indexOf(enemy), 1);
+        this.enemies.splice(index, 1);
+        if (this.ended) return;
+        continue;
       }
       if (this.ended) return;
+      index += 1;
     }
   }
 
   private updateProjectiles(dt: number) {
-    for (const projectile of [...this.projectiles]) {
+    for (let index = 0; index < this.projectiles.length;) {
+      const projectile = this.projectiles[index];
       const x = projectile.x + projectile.vx * dt;
       const y = projectile.y + projectile.vy * dt;
       projectile.lifetime -= dt;
@@ -339,14 +369,15 @@ export class GameSimulation {
           this.player.radius + this.balance.projectile.radius,
         )
       ) {
-        this.damagePlayer(this.balance.projectile.damage);
+        this.damagePlayer(this.balance.shooter.projectileDamage);
         this.addEffect(x, y, "impact", COMBAT_FEEDBACK.impactDuration);
         hit = true;
       }
-      if (hit) this.projectiles.splice(this.projectiles.indexOf(projectile), 1);
+      if (hit) this.projectiles.splice(index, 1);
       else {
         projectile.x = x;
         projectile.y = y;
+        index += 1;
       }
       if (this.ended) return;
     }
@@ -356,16 +387,19 @@ export class GameSimulation {
     this.player.hitFeedback = Math.max(0, this.player.hitFeedback - dt);
     for (const enemy of this.enemies)
       enemy.hitFeedback = Math.max(0, enemy.hitFeedback - dt);
-    for (const effect of [...this.effects]) {
+    for (let index = 0; index < this.effects.length;) {
+      const effect = this.effects[index];
       effect.age += dt;
       if (effect.age >= effect.duration)
-        this.effects.splice(this.effects.indexOf(effect), 1);
+        this.effects.splice(index, 1);
+      else index += 1;
     }
   }
 
   private damagePlayer(amount: number) {
-    this.player.health = Math.max(0, this.player.health - amount);
     this.player.hitFeedback = COMBAT_FEEDBACK.hitDuration;
+    if (this.profileInvulnerable) return;
+    this.player.health = Math.max(0, this.player.health - amount);
     if (this.player.health <= 0) this.ended = "death";
   }
 
@@ -639,7 +673,7 @@ function turnToward(current: number, target: number, maxStep: number) {
     current + Math.max(-maxStep, Math.min(maxStep, difference)),
   );
 }
-function islandDistance(x: number, y: number, island: IslandShape) {
+export function islandDistance(x: number, y: number, island: IslandShape) {
   const core = ISLAND_LAND_HALF_SIZE - ISLAND_LAND_CORNER_RADIUS;
   const qx = Math.abs(x - island.x) - core;
   const qy = Math.abs(y - island.y) - core;

@@ -17,6 +17,12 @@ test("menu visual baseline", async ({ page }) => {
   });
 });
 
+test("options controls visual baseline", async ({ page }) => {
+  await page.getByRole("button", { name: "Options" }).click();
+  await expect(page.getByRole("button", { name: "Increase Game session time" })).toBeVisible();
+  await expect(page).toHaveScreenshot("options.png", { animations: "disabled", fullPage: true });
+});
+
 test("stable arena visual baseline", async ({ page }) => {
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect(page.locator(".battle-stage canvas")).toBeVisible();
@@ -41,6 +47,20 @@ test("projectile impact visual baseline", async ({ page }) => {
   });
 });
 
+test("partially depleted red ship health visual baseline", async ({ page }) => {
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await page.waitForFunction(() => Boolean(window.__pirateBattleTest));
+  await page.keyboard.down("d");
+  await page.evaluate(() => window.__pirateBattleTest!.step(30));
+  await page.keyboard.up("d");
+  await page.evaluate(() => window.__pirateBattleTest!.spawn("chaser", 188, 370));
+  await page.keyboard.down("Space");
+  await page.evaluate(() => window.__pirateBattleTest!.step(9));
+  await page.keyboard.up("Space");
+  expect((await page.evaluate(() => window.__pirateBattleTest!.snapshot())).enemies[0].health).toBe(1);
+  await expect(page).toHaveScreenshot("ship-health.png", { animations: "disabled", fullPage: true });
+});
+
 test("result visual baseline", async ({ page }) => {
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.waitForFunction(() => Boolean(window.__pirateBattleTest));
@@ -50,7 +70,7 @@ test("result visual baseline", async ({ page }) => {
     bridge.step(1);
   });
   await expect(
-    page.getByRole("heading", { name: "Battle Result" }),
+    page.getByRole("heading", { name: "Battle Complete" }),
   ).toBeVisible();
   await expect(page).toHaveScreenshot("result.png", {
     animations: "disabled",
